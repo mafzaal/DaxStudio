@@ -16,10 +16,10 @@ $requiredDlls = @("Microsoft.Excel.AdomdClient.dll"
 , "Microsoft.AnalysisServices.AdomdClient.dll")
 
 $searchFolders = @("${Env:ProgramFiles(x86)}\Common Files\Microsoft Shared\Office15\DataModel\"
-, "$Env:ProgramFiles\Microsoft Office 15\root\vfs\ProgramFilesCommonX86\Microsoft Shared\OFFICE15\DataModel\"
-, "$Env:ProgramFiles\Common Files\microsoft shared\OFFICE15\DataModel"
+, "$Env:ProgramFiles\Microsoft Office\root\VFS\ProgramFilesCommonX64\Microsoft Shared\OFFICE16\DataModel\"
+, "${Env:ProgramFiles(x86)}\Common Files\microsoft shared\OFFICE15\DataModel"
 , "$Env:ProgramFiles\Microsoft.NET\ADOMD.NET\110\"
-, "$Env:ProgramFiles\Microsoft.NET\ADOMD.NET\120\"
+, "${Env:ProgramFiles(x86)}\Microsoft.NET\ADOMD.NET\130\"
 )
 
 ## 1. Create lib subfolder
