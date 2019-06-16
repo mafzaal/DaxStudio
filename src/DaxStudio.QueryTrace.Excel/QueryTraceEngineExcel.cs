@@ -16,9 +16,10 @@ namespace DaxStudio.QueryTrace
     public class QueryTraceEngineExcel: IQueryTrace
     {
 #region public IQueryTrace interface
-        public Task StartAsync()
+        public Task StartAsync(int startTimeoutSecs)
         {
             Log.Debug("{class} {method} {message}", "QueryTraceEngineExcel", "StartAsync", "entered");
+            this.TraceStartTimeoutSecs = startTimeoutSecs;
             return Task.Run(() => Start());
         }
 
@@ -72,7 +73,7 @@ namespace DaxStudio.QueryTrace
             _traceStarted = false;
         }
 
-
+        public int TraceStartTimeoutSecs { get; private set; }
         public QueryTraceStatus Status
         {
 	        get { return _status;  }
@@ -210,7 +211,7 @@ namespace DaxStudio.QueryTrace
 	                _startingTimer = new Timer();
                 //HACK - wait 1.5 seconds to allow trace to start 
                 //       using the ping method thows a connection was lost error when starting a second trace
-                _startingTimer.Interval = 300;  //TODO - make time interval shorter?
+                _startingTimer.Interval = 300;  
 	            _startingTimer.Elapsed += OnTimerElapsed;
 	            _startingTimer.Enabled = true;
 	            _startingTimer.Start();
@@ -233,7 +234,7 @@ namespace DaxStudio.QueryTrace
             Execute.OnUIThread(() => _connection.Ping());
             //Execute.OnUIThread(() => ServerPing());
             // if past timeout then exit and display error
-            if ((utcPingStart - DateTime.UtcNow).Seconds > 30)
+            if ((utcPingStart - DateTime.UtcNow).Seconds > TraceStartTimeoutSecs)
             {
                 _startingTimer.Stop();
                 _trace.Drop();
@@ -369,6 +370,12 @@ namespace DaxStudio.QueryTrace
                 xlsxFile,
                 eventTime); 
             return dsEvent;
+        }
+
+        public void Update(string databaseName)
+        {
+            // Note: Excel Query Trace does not use the database name parameter
+            Update();
         }
 
         public void Update()

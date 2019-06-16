@@ -4,20 +4,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:cal="clr-namespace:Caliburn.Micro;assembly=Caliburn.Micro.Platform"
-             xmlns:ado="clr-namespace:ADOTabular;assembly=ADOTabular"
              xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
              xmlns:conv="clr-namespace:DaxStudio.UI.Converters"
              xmlns:beh="clr-namespace:DaxStudio.UI.Behaviours"
              xmlns:trig="clr-namespace:DaxStudio.UI.Triggers"
              xmlns:model="clr-namespace:DaxStudio.UI.Model"
              xmlns:ctrl="clr-namespace:DaxStudio.UI.Controls"
-             xmlns:Fluent="clr-namespace:Fluent;assembly=Fluent"
              xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
-             xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
              xmlns:ap="clr-namespace:DaxStudio.UI.AttachedProperties"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
-             xmlns:mwt="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero"
-             xmlns:themes="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero2"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300" >
     <UserControl.Resources>
@@ -92,6 +87,7 @@
                     <BitmapImage x:Key="Hierarchy" UriSource="pack://application:,,,/DaxStudio.UI;component/images/Metadata/Hierarchy.png"/>
                     <BitmapImage x:Key="Kpi" UriSource="pack://application:,,,/DaxStudio.UI;component/images/Metadata/Kpi.png"/>
                     <BitmapImage x:Key="UnnaturalHierarchy" UriSource="pack://application:,,,/DaxStudio.UI;component/images/Metadata/Hierarchy-unnatural.png"/>
+                    <BitmapImage x:Key="Folder" UriSource="pack://application:,,,/DaxStudio.UI;component/images/Metadata/Folder.png"/>
                 </ResourceDictionary>
             </conv:ResourceLookupConverter>
 
@@ -169,9 +165,8 @@
         </Grid.RowDefinitions>
         <!-- database Dropdown -->
         <ComboBox Grid.Row="0" x:Name="Database" 
-            SelectedItem="{Binding SelectedDatabase}"
-            SelectedValuePath="Name"
-            ItemsSource="{Binding DatabasesView}"   
+            SelectedItem="{Binding SelectedDatabase, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+            ItemsSource="{Binding DatabasesView, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"   
             MinWidth="160" 
             Template="{DynamicResource MetroComboBoxControlTemplate}"
             IsEditable="False"
@@ -187,13 +182,15 @@
                 </DataTemplate>
             </ComboBox.ItemTemplate>
         </ComboBox>
+        <!-- SelectedValuePath="Name" -->
         <!-- Model Dropdown -->
         <ComboBox Grid.Row="1" 
                   IsEditable="False"
                   IsEnabled="{Binding CanSelectModel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
                   ItemsSource="{Binding ModelList, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
                   SelectedItem="{Binding SelectedModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"      
-                  IsSynchronizedWithCurrentItem="True" Template="{DynamicResource MetroComboBoxControlTemplate}"
+                  IsSynchronizedWithCurrentItem="True" 
+                  Template="{DynamicResource MetroComboBoxControlTemplate}"
                   >
             <!-- Style="{DynamicResource MetroComboBox}" -->
             <ComboBox.ItemTemplate>
@@ -245,9 +242,9 @@
                             <TreeView.Resources>
                                 <HierarchicalDataTemplate DataType="{x:Type model:TreeViewTable}" ItemsSource="{Binding Children}">
                                     <!-- Table Template -->
-                                    <StackPanel Orientation="Horizontal">
+                                    <StackPanel Orientation="Horizontal" Tag="{Binding DataContext, ElementName=Tables}">
                                         <Image Source="{Binding MetadataImage,Converter={StaticResource MetadataIcons}}" Margin="2,1,5,1"/>
-                                        <TextBlock  Text="{Binding Caption}" > <TextBlock Foreground="BlueViolet" Text="{Binding CriteriaMatched}"/>
+                                        <TextBlock  Text="{Binding Caption}" > <TextBlock Foreground="BlueViolet" />
                                                     <TextBlock.ToolTip>
                                                         <StackPanel Orientation="Vertical" MaxWidth="250">
                                                             <StackPanel Orientation="Horizontal">
@@ -266,6 +263,31 @@
                                                         </StackPanel>
                                                     </TextBlock.ToolTip>    
                                                 </TextBlock>
+                                        <StackPanel.ContextMenu>
+                                            <ContextMenu 
+                                                Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsTable }"
+                                                cal:Action.TargetWithoutContext="{Binding Path=PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
+                                                <MenuItem Header="Define Filter Dump Measure"
+                                                    cal:Message.Attach="[Event Click] = [Action DefineFilterDumpMeasureOneTable($dataContext)]">
+                                                </MenuItem>
+                                                <MenuItem Header="Define Filter Dump Measure (All tables)"
+                                                    cal:Message.Attach="[Event Click] = [Action DefineFilterDumpMeasureAllTables($dataContext)]">
+                                                </MenuItem>
+                                                <MenuItem Header="Define All Measures"
+                                                        cal:Message.Attach="[Event Click] = [Action DefineAllMeasuresOneTable($dataContext)]">
+                                                </MenuItem>
+                                                <MenuItem Header="Define All Measures (All tables)"
+                                                    cal:Message.Attach="[Event Click] = [Action DefineAllMeasuresAllTables($dataContext)]">
+                                                </MenuItem>
+                                                <MenuItem Header="Show Objects That Reference Table"
+                                                        cal:Message.Attach="[Event Click] = [Action ShowObjectsThatReferenceTable($dataContext)]">
+                                                </MenuItem>
+                                                <Separator/>
+                                                <MenuItem Header="{Binding Path=MetadataPane.ShowHiddenObjectsLabel}"
+                                                          cal:Message.Attach="[Event Click] = [Action ToggleHiddenObjects()]" />
+                                                
+                                            </ContextMenu>
+                                        </StackPanel.ContextMenu>
                                     </StackPanel>
                                 </HierarchicalDataTemplate>
 
@@ -274,10 +296,11 @@
                                     <StackPanel Orientation="Horizontal" Tag="{Binding DataContext, ElementName=Tables}">
 
                                         <Image Source="{Binding MetadataImage,Converter={StaticResource MetadataIcons}}" Margin="2,1,5,1" />
-                                        <TextBlock x:Name="Caption" Text="{Binding Caption}"
+                                        <TextBlock x:Name="Caption" Text="{Binding Caption}" 
                                                    cal:Message.Attach="[Event ToolTipOpening] = [Action ColumnTooltipOpening($dataContext)]"
                                                    >
                                             <TextBlock.ToolTip>
+                                                <ToolTip Background="{DynamicResource BaseBrush}">
                                                 <Grid>
                                                     <StackPanel Orientation="Vertical" Margin="5">
                                                         <StackPanel Orientation="Horizontal" Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter},Path=ShowDataType}">
@@ -345,7 +368,6 @@
                                                               Visibility="{Binding UpdatingSampleData, Converter={StaticResource BoolToNotVisibleConverter}}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                        <!-- -->
                                                                         <TextBlock Style="{StaticResource SampleDataListItem}" Text="{Binding Path=. }" />
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -355,26 +377,38 @@
                                                         </Grid>
                                                     </StackPanel>
                                                 </Grid>
-
+                                                </ToolTip>
                                             </TextBlock.ToolTip>                                
                                             </TextBlock>
 
                                         <StackPanel.ContextMenu>
                                             <ContextMenu 
                                                 cal:Action.TargetWithoutContext="{Binding Path=PlacementTarget.Tag, RelativeSource={RelativeSource Self}}"
-                                                Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsMeasure }">
+                                                Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsColumnOrMeasure}">
                                                 <MenuItem Header="Define Measure"
-                                                        cal:Message.Attach="[Event Click] = [Action DefineMeasure($dataContext)]">
+                                                        cal:Message.Attach="[Event Click] = [Action DefineMeasure($dataContext)]"
+                                                    Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsMeasure}">
                                                 </MenuItem>
                                                 <MenuItem Header="Define Dependent Measures"
-                                                        cal:Message.Attach="[Event Click] = [Action DefineDependentMeasures($dataContext)]">
+                                                        cal:Message.Attach="[Event Click] = [Action DefineDependentMeasures($dataContext)]"
+                                                          Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsMeasure}">
                                                 </MenuItem>
                                                 <MenuItem Header="Define and Expand Measure"
-                                                        cal:Message.Attach="[Event Click] = [Action DefineExpandMeasure($dataContext)]">
+                                                        cal:Message.Attach="[Event Click] = [Action DefineExpandMeasure($dataContext)]"
+                                                          Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsMeasure}">
+                                                </MenuItem>
+                                                <MenuItem Header="Show Objects That Reference Measure"
+                                                        cal:Message.Attach="[Event Click] = [Action ShowObjectsThatReferenceColumnOrMeasure($dataContext)]"
+                                                          Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsMeasure}">
+                                                </MenuItem>
+                                                <MenuItem Header="Show Objects That Reference Column"
+                                                        cal:Message.Attach="[Event Click] = [Action ShowObjectsThatReferenceColumnOrMeasure($dataContext)]"
+                                                          Visibility="{Binding Converter={StaticResource BoolToVisibilityConverter}, Path=IsColumn}">
                                                 </MenuItem>
                                             </ContextMenu>
                                         </StackPanel.ContextMenu>
 
+                                        
                                     </StackPanel>
                                 </HierarchicalDataTemplate>
                             </TreeView.Resources>
@@ -417,6 +451,13 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Image.Style>
+                                        <Image.ContextMenu>
+                                            <!-- Header="{Binding Path=MetadataPane.PinSearchOpenLabel}" -->
+                                            <ContextMenu>
+                                                <MenuItem Header="Pin/UnPin Search" 
+                                                          cal:Message.Attach="[Event Click] = [Action TogglePinSearchOpen()]" />
+                                            </ContextMenu>
+                                        </Image.ContextMenu>
                                     </Image>
                                     <TextBox Grid.Column="1"
                                                     x:Name="CurrentCriteria"

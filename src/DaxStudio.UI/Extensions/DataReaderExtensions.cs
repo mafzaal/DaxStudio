@@ -1,15 +1,16 @@
-﻿using System;
+﻿using DaxStudio.Common;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace DaxStudio.UI.Extensions
 {
     public static class DataReaderExtensions
     {
+        
+
         internal class DaxColumn
         {
             public string OriginalName { get; set; }
@@ -115,31 +116,60 @@ namespace DaxStudio.UI.Extensions
 
 
 
-        public static DataSet ConvertToDataSet(this ADOTabular.AdomdClientWrappers.AdomdDataReader reader)
+        public static DataSet ConvertToDataSet(this ADOTabular.AdomdClientWrappers.AdomdDataReader reader, bool autoFormat = false)
         {
             ADOTabular.ADOTabularColumn daxCol;
             DataSet ds = new DataSet();
             bool moreResults = true;
             int tableIdx = 1;
+            int localeId = reader.Connection.LocaleIdentifier;
             while (moreResults)
             {
                 DataTable dtSchema = reader.GetSchemaTable();
                 DataTable dt = new DataTable(tableIdx.ToString());
                 // You can also use an ArrayList instead of List<>
                 List<DataColumn> listCols = new List<DataColumn>();
-                    
                 if (dtSchema != null)
                 {
-                    foreach (DataRow drow in dtSchema.Rows)
+                    foreach (DataRow row in dtSchema.Rows)
                     {
-                        string columnName = System.Convert.ToString(drow["ColumnName"]);
-                        DataColumn column = new DataColumn(columnName, (Type)(drow["DataType"]));
-                        column.Unique = (bool)drow["IsUnique"];
-                        column.AllowDBNull = (bool)drow["AllowDBNull"];
-                        //column.AutoIncrement = (bool)drow["IsAutoIncrement"];
+                        string columnName = Convert.ToString(row["ColumnName"]);
+                        Type columnType = (Type)row["DataType"];
+                        if (columnType.Name == "XmlaDataReader") columnType = typeof(string);
+                        DataColumn column = new DataColumn(columnName, columnType); // (Type)(row["DataType"]));
+                        column.Unique = (bool)row[Constants.IS_UNIQUE];
+                        column.AllowDBNull = (bool)row[Constants.ALLOW_DBNULL];
                         daxCol = null;
                         reader.Connection.Columns.TryGetValue(columnName, out daxCol);
-                        if (daxCol != null) column.ExtendedProperties.Add("FormatString", daxCol.FormatString);
+                        if (daxCol != null) {
+                            column.ExtendedProperties.Add(Constants.FORMAT_STRING, daxCol.FormatString);
+                            if (localeId != 0) column.ExtendedProperties.Add(Constants.LOCALE_ID, localeId);
+                        }
+                        else if (autoFormat) {
+                            string formatString;
+                            switch (column.DataType.Name)
+                            {
+                                case "Decimal":
+                                case "Double":
+                                    if (column.Caption.Contains(@"%") || column.Caption.Contains("Pct")) {
+                                        formatString = "0.00%";
+                                    }
+                                    else {
+                                        formatString = "#,0.00";
+                                    }
+                                    break;
+                                case "Int64":
+                                    formatString = "#,0";
+                                    break;
+                                default:
+                                    formatString = null;
+                                    break;
+                            }
+                            if (formatString != null) {
+                                column.ExtendedProperties.Add(Constants.FORMAT_STRING, formatString);
+                                if (localeId != 0) column.ExtendedProperties.Add(Constants.LOCALE_ID, localeId);
+                            }
+                        }
                         listCols.Add(column);
                         dt.Columns.Add(column);
                     }
@@ -151,7 +181,10 @@ namespace DaxStudio.UI.Extensions
                     DataRow dataRow = dt.NewRow();
                     for (int i = 0; i < listCols.Count; i++)
                     {
-                        dataRow[((DataColumn)listCols[i])] = reader[i] ?? DBNull.Value;
+                        if (reader.IsDataReader(i))
+                            dataRow[((DataColumn)listCols[i])] = reader.GetDataReaderValue(i); 
+                        else
+                            dataRow[((DataColumn)listCols[i])] = reader[i] ?? DBNull.Value;
                     }
                     dt.Rows.Add(dataRow);
                 }

@@ -4,9 +4,9 @@ using System.Linq;
 
 namespace ADOTabular
 {
-    public class ADOTabularTable :IADOTabularObject
+    public class ADOTabularTable :IADOTabularObject, IADOTabularFolderReference
     {
-        private readonly ADOTabularConnection _adoTabConn;
+        private readonly IADOTabularConnection _adoTabConn;
         private ADOTabularColumnCollection _columnColl;
         private ADOTabularMeasureCollection _measuresColl;        
 
@@ -19,7 +19,7 @@ namespace ADOTabular
             _model = model;
         }
         */
-        public ADOTabularTable(ADOTabularConnection adoTabConn, string internalReference, string name, string caption, string description, bool isVisible)
+        public ADOTabularTable(IADOTabularConnection adoTabConn, string internalReference, string name, string caption, string description, bool isVisible, bool _private, bool showAsVariationsOnly )
         {
             _adoTabConn = adoTabConn;
             InternalReference = internalReference;
@@ -28,6 +28,10 @@ namespace ADOTabular
             DaxName = GetDaxName();
             Description = description;
             IsVisible = isVisible;
+            Relationships = new List<ADOTabularRelationship>();
+            FolderItems = new List<IADOTabularObjectReference>();
+            Private = _private;
+            ShowAsVariationsOnly = showAsVariationsOnly;
         }
 
         private static readonly string[] specialNames = { "DATE" };
@@ -68,6 +72,8 @@ namespace ADOTabular
 
         public string Description { get; private set; }
 
+        public List<IADOTabularObjectReference> FolderItems { get; }
+
         public bool IsVisible { get; private set; }
 
         public ADOTabularColumnCollection Columns
@@ -86,5 +92,13 @@ namespace ADOTabular
         {
             get { return IsVisible ? MetadataImages.Table : MetadataImages.HiddenTable; }
         }
+
+        public IList<ADOTabularRelationship> Relationships { get; private set; } 
+        public ADOTabularObjectType ObjectType => ADOTabularObjectType.Table;
+
+        public FolderReferenceType ReferenceType => throw new System.NotImplementedException();
+
+        public bool Private { get; }
+        public bool ShowAsVariationsOnly { get; }
     }
 }

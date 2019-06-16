@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Text;
 using System.Windows;
-using ADOTabular;
-using ADOTabular.AdomdClientWrappers;
 using Caliburn.Micro;
 using DaxStudio.Interfaces;
 using DaxStudio.UI.Events;
@@ -14,6 +11,8 @@ using DaxStudio.UI.Utils;
 using Serilog;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using DaxStudio.UI.Extensions;
+using DaxStudio.UI.Interfaces;
 
 namespace DaxStudio.UI.ViewModels
 {
@@ -25,11 +24,17 @@ namespace DaxStudio.UI.ViewModels
         private readonly string _connectionString;
         private readonly DocumentViewModel _activeDocument;
         private readonly Regex _ppvtRegex;
+        private static PowerBIInstance _pbiLoadingInstance = new PowerBIInstance("Loading...", -1, EmbeddedSSASIcon.Loading);
+        private static PowerBIInstance _pbiNoneInstance = new PowerBIInstance("<none found>", -1, EmbeddedSSASIcon.Loading);
+        private ISettingProvider SettingProvider;
+
+
         public ConnectionDialogViewModel(string connectionString
             , IDaxStudioHost host
             , IEventAggregator eventAggregator
             , bool hasPowerPivotModel
-            , DocumentViewModel document ) 
+            , DocumentViewModel document
+            , ISettingProvider settingProvider) 
         {
             try
             {
@@ -37,6 +42,7 @@ namespace DaxStudio.UI.ViewModels
                 _eventAggregator.Subscribe(this);
                 _connectionString = connectionString;
                 _activeDocument = document;
+                SettingProvider = settingProvider;
                 _ppvtRegex = new Regex(@"http://localhost:\d{4}/xmla", RegexOptions.Compiled | RegexOptions.IgnoreCase);
                 PowerPivotEnabled = true;
                 Host = host;
@@ -75,22 +81,39 @@ namespace DaxStudio.UI.ViewModels
 
         private void RefreshPowerBIInstances()
         {
-            
-            PowerBIHelper.Refresh();
-            PowerBIDesignerDetected = PowerBIHelper.Instances.Count > 0;
-            if (PowerBIHelper.Instances.Count > 0)
-            {
-                if (SelectedPowerBIInstance == null) SelectedPowerBIInstance = PowerBIHelper.Instances[0];
-            } else
-            {
-                if (PowerBIModeSelected) ServerModeSelected = true;
-                SelectedPowerBIInstance = null;
-            }
-            // update bound properties
-            NotifyOfPropertyChange(() => PowerBIDesignerDetected);
-            NotifyOfPropertyChange(() => PowerBIDesignerInstances);
-            NotifyOfPropertyChange(() => SelectedPowerBIInstance);
-            
+
+            _powerBIInstances = new List<PowerBIInstance>() { _pbiLoadingInstance };
+            SelectedPowerBIInstance = _pbiLoadingInstance;
+
+            Task.Run(() =>{
+
+                // display the "loading..." message
+                _powerBIInstances.Clear();
+                _powerBIInstances.Add(_pbiLoadingInstance);
+                NotifyOfPropertyChange(() => PowerBIDesignerInstances);
+                NotifyOfPropertyChange(() => PowerBIInstanceDetected);
+
+                // look for local workspace instances
+                _powerBIInstances = PowerBIHelper.GetLocalInstances();
+
+
+                if (PowerBIInstanceDetected)
+                {
+                    if (SelectedPowerBIInstance == null) SelectedPowerBIInstance = _powerBIInstances[0];
+                } else
+                {
+                    if (PowerBIModeSelected) ServerModeSelected = true;
+                    SelectedPowerBIInstance = null;
+                }
+                // update bound properties
+                NotifyOfPropertyChange(() => PowerBIInstanceDetected);
+                NotifyOfPropertyChange(() => PowerBIDesignerInstances);
+                NotifyOfPropertyChange(() => SelectedPowerBIInstance);
+            }).ContinueWith(t => {
+                // we should only come here if we got an exception
+                Log.Error(t.Exception, "Error getting PowerBI/SSDT instances: {message}", t.Exception.Message);
+                _eventAggregator.PublishOnUIThread(new OutputMessage(MessageType.Error, $"Error getting PowerBI/SSDT instances: {t.Exception.Message}"));
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         public bool HostIsExcel { get { return Host.IsExcel; } }
@@ -141,6 +164,8 @@ namespace DaxStudio.UI.ViewModels
                 {
                     _serverModeSelected = value;
                     NotifyOfPropertyChange(() => ServerModeSelected);
+                    NotifyOfPropertyChange(nameof(IsRolesEnabled));
+                    NotifyOfPropertyChange(nameof(IsEffectiveUserNameEnabled));
                 }
             }
         }
@@ -153,6 +178,8 @@ namespace DaxStudio.UI.ViewModels
                 if (value != _powerPivotModeSelected)
                 {
                     _powerPivotModeSelected = value;
+                    NotifyOfPropertyChange(nameof(IsRolesEnabled));
+                    NotifyOfPropertyChange(nameof(IsEffectiveUserNameEnabled));
                 }
             }
         }
@@ -206,6 +233,12 @@ namespace DaxStudio.UI.ViewModels
                             case "application name":
                                 ApplicationName = p.Value;
                                 break;
+                            case "locale identifier":
+                                Locale = LocaleOptions.GetByLcid(int.Parse( p.Value));
+                                break;
+                            case "show hidden cubes":
+                                // do nothing
+                                break;
                             default:
                                 AdditionalOptions += string.Format("{0}={1};", p.Key, p.Value);
                                 break;
@@ -257,7 +290,10 @@ namespace DaxStudio.UI.ViewModels
             }
             set { _roles = value; }
         }
+
+        public bool IsRolesEnabled { get { return true; } }
         public string EffectiveUserName { get; set; }
+        public bool IsEffectiveUserNameEnabled { get { return true; } }
         public string ApplicationName { get; set; }
 
         private string _directQueryMode;
@@ -323,7 +359,7 @@ namespace DaxStudio.UI.ViewModels
 
         public ObservableCollection<string> RecentServers
         {
-            get {var list = RegistryHelper.GetServerMRUListFromRegistry();
+            get {var list = SettingProvider.GetServerMRUList();
                 return list;
             }
         }
@@ -423,7 +459,7 @@ namespace DaxStudio.UI.ViewModels
         */
         private string BuildPowerPivotConnection()
         {    
-            return Host.Proxy.GetPowerPivotConnection(GetApplicationName("Power Pivot"), string.Format("Location={0};Extended Properties=\"Location={0}\";Workstation ID={0}",WorkbookName)).ConnectionString;
+            return Host.Proxy.GetPowerPivotConnection(GetApplicationName("Power Pivot"), string.Format("Location=\"{0}\";Extended Properties='Location=\"{1}\"';Workstation ID=\"{0}\"",WorkbookName, WorkbookName.Replace("'","''"))).ConnectionString;
             
         }
 
@@ -442,7 +478,7 @@ namespace DaxStudio.UI.ViewModels
                 
                 if (ServerModeSelected)
                 {
-                    RegistryHelper.SaveServerMRUListToRegistry(DataSource, RecentServers);
+                    SettingProvider.SaveServerMRUList(DataSource, RecentServers);
                     serverType = "SSAS";
                 }
                 if (PowerPivotModeSelected) { serverType = "PowerPivot"; }
@@ -505,12 +541,28 @@ namespace DaxStudio.UI.ViewModels
             }
         }
 
-        public bool PowerBIDesignerDetected { get; private set; }
+        // readonly property
+        // do we have more than one detected instance of a local workspace
+        // or we have 1 instance that is not the "Loading..." instance 
+        public bool PowerBIInstanceDetected => _powerBIInstances.Count > 1 
+                                              || (_powerBIInstances.Count == 1 && _powerBIInstances[0] != _pbiLoadingInstance);
 
-        public List<PowerBIInstance> PowerBIDesignerInstances { get { return PowerBIHelper.Instances; } }
-        public bool PowerBIModeSelected { get; set; }
+        public List<PowerBIInstance> PowerBIDesignerInstances { get { return _powerBIInstances; } }
+        public bool PowerBIModeSelected { get => _powerBIModeSelected; set {
+                _powerBIModeSelected = value;
+                NotifyOfPropertyChange(nameof(IsRolesEnabled));
+                NotifyOfPropertyChange(nameof(IsEffectiveUserNameEnabled));
+            }
+        }
 
-        public PowerBIInstance SelectedPowerBIInstance { get; set; }
+        private PowerBIInstance _selectedPowerBIInstance;
+        public PowerBIInstance SelectedPowerBIInstance {
+            get { return _selectedPowerBIInstance; }
+            set {
+                _selectedPowerBIInstance = value;
+                NotifyOfPropertyChange(() => SelectedPowerBIInstance);
+            }
+        }
 
         public string ConnectionType { get {
             if (ServerModeSelected) return "SSAS";
@@ -548,6 +600,8 @@ namespace DaxStudio.UI.ViewModels
 
         private SortedList<string, LocaleIdentifier> _locales;
         private bool _hasPowerPivotModel;
+        private List<PowerBIInstance> _powerBIInstances = new List<PowerBIInstance> { _pbiLoadingInstance };
+        private bool _powerBIModeSelected;
 
         public SortedList<string, LocaleIdentifier> LocaleOptions
         {

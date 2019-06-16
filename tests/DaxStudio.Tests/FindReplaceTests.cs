@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using DAXEditor;
 using ICSharpCode.AvalonEdit.Document;
 using DaxStudio.Tests.Mocks;
+using Caliburn.Micro;
 
 namespace DaxStudio.Tests
 {
@@ -11,17 +12,19 @@ namespace DaxStudio.Tests
     public class FindReplaceTests
     {
         private MockEditor ed;
+        private IEventAggregator mockEventAggregator;
         private FindReplaceDialogViewModel vm;
         [TestInitialize]
         public void Init() {
             ed = new MockEditor("This is some sample text\non 3 different lines\nwith more samples");
-            
+            mockEventAggregator = new MockEventAggregator();
         }
 
         [TestMethod]
         public void FindCaseInsensitive()
         {
-            vm = new FindReplaceDialogViewModel(ed);
+            vm = new FindReplaceDialogViewModel(mockEventAggregator);
+            vm.Editor = ed;
             vm.TextToFind = "SAMPLE";
             vm.CaseSensitive = false;
             vm.FindText();
@@ -32,7 +35,8 @@ namespace DaxStudio.Tests
         [TestMethod]
         public void FindCaseSensitive()
         {
-            vm = new FindReplaceDialogViewModel(ed);
+            vm = new FindReplaceDialogViewModel(mockEventAggregator);
+            vm.Editor = ed;
             vm.TextToFind = "SAMPLE";
             vm.CaseSensitive = true;
             vm.FindText();
@@ -49,7 +53,10 @@ namespace DaxStudio.Tests
         [TestMethod]
         public void FindWildcard()
         {
-            vm = new FindReplaceDialogViewModel(ed);
+            // TODO - this test fails intermittently, need to see if we can figure out why...
+
+            vm = new FindReplaceDialogViewModel(mockEventAggregator);
+            vm.Editor = ed;
             vm.UseWildcards = true;
             vm.TextToFind = "sam*";
             vm.FindText();
@@ -60,7 +67,8 @@ namespace DaxStudio.Tests
         [TestMethod]
         public void FindRegEx()
         {
-            vm = new FindReplaceDialogViewModel(ed);
+            vm = new FindReplaceDialogViewModel(mockEventAggregator);
+            vm.Editor = ed;
             vm.UseRegex = true;
             vm.TextToFind = "sam[^\\s]*";
             vm.FindText();
@@ -77,7 +85,8 @@ namespace DaxStudio.Tests
         [TestMethod]
         public void ReplaceTest()
         {
-            vm = new FindReplaceDialogViewModel(ed);
+            vm = new FindReplaceDialogViewModel(mockEventAggregator);
+            vm.Editor = ed;
             vm.UseRegex = true;
             vm.TextToFind = "sam[^\\s]*";
             vm.TextToReplace = "hello";
@@ -93,7 +102,8 @@ namespace DaxStudio.Tests
         [TestMethod]
         public void ReplaceAllTest()
         {
-            vm = new FindReplaceDialogViewModel(ed);
+            vm = new FindReplaceDialogViewModel(mockEventAggregator);
+            vm.Editor = ed;
             vm.UseRegex = true;
             vm.TextToFind = "sam[^\\s]*";
             vm.TextToReplace = "hello";

@@ -21,11 +21,13 @@ namespace DaxStudio.UI
     using System.Windows.Input;
     using DaxStudio.UI.Triggers;
     using DaxStudio.UI.Utils;
+    using DaxStudio.UI.Events;
+    using DaxStudio.UI.Interfaces;
 
     public class AppBootstrapper : BootstrapperBase//<IShell>
 	{
 		CompositionContainer _container;
-	    private Assembly _hostAssembly;
+	    private readonly Assembly _hostAssembly;
         
 	    public AppBootstrapper(Assembly hostAssembly, bool useApplication) : base(useApplication)
 	    {
@@ -41,6 +43,21 @@ namespace DaxStudio.UI
 
         protected override void OnUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
+            if (e.Exception is ArgumentOutOfRangeException)
+            {
+                var st = new System.Diagnostics.StackTrace(e.Exception);
+                var sf = st.GetFrame(0);
+                if (sf.GetMethod().Name == "GetLineByOffset")
+                {
+                    var _eventAggregator = _container.GetExportedValue<IEventAggregator>();
+                    if (_eventAggregator != null) _eventAggregator.PublishOnUIThread(new OutputMessage(MessageType.Warning, "Editor syntax highlighting attempted to scan byond the end of the current line"));
+                    Log.Warning(e.Exception, "{class} {method} AvalonEdit TextDocument.GetLineByOffset: {message}", "EntryPoint", "Main", "Argument out of range exception");
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+
             base.OnUnhandledException(sender, e);
             Debug.WriteLine(e.Exception);
             Log.Error("{Class} {Method} {Exception}", "AppBootstrapper", "OnUnhandledException", e.Exception);
@@ -76,7 +93,10 @@ namespace DaxStudio.UI
                 ConventionManager.AddElementConvention<Xceed.Wpf.Toolkit.DoubleUpDown>(Xceed.Wpf.Toolkit.DoubleUpDown.ValueProperty, "Value", "ValueChanged");
                 ConventionManager.AddElementConvention<Xceed.Wpf.Toolkit.IntegerUpDown>(Xceed.Wpf.Toolkit.IntegerUpDown.ValueProperty, "Value", "ValueChanged");
                 ConventionManager.AddElementConvention<Xceed.Wpf.Toolkit.WatermarkTextBox>(Xceed.Wpf.Toolkit.WatermarkTextBox.TextProperty, "Text", "TextChanged");
-                
+
+                // Add Fluent Ribbon resovler
+                BindingScope.AddChildResolver<Fluent.Ribbon>(FluentRibbonChildResolver);
+
 
                 // Fixes the default datetime format in the results listview
                 // from: http://stackoverflow.com/questions/1993046/datetime-region-specific-formatting-in-wpf-listview
@@ -90,6 +110,11 @@ namespace DaxStudio.UI
 	            //_container = new CompositionContainer(catalog,true);
                 _container = new CompositionContainer(catalog);
 	            var batch = new CompositionBatch();
+
+                if (JsonSettingProvider.SettingsFileExists())
+                    batch.AddExportedValue<ISettingProvider>(new JsonSettingProvider());
+                else
+                    batch.AddExportedValue<ISettingProvider>(new RegistrySettingProvider());
 
 	            batch.AddExportedValue<IWindowManager>(new WindowManager());
 	            batch.AddExportedValue<IEventAggregator>(new EventAggregator());
@@ -243,5 +268,35 @@ namespace DaxStudio.UI
             };
         }
 
-	}
+
+        static IEnumerable<System.Windows.DependencyObject> FluentRibbonChildResolver(Fluent.Ribbon ribbon)
+        {
+            /*
+            foreach (var ti in ribbon.Tabs)
+            {
+                foreach (var group in ti.Groups)
+                {
+                    foreach (var obj in BindingScope.GetNamedElements(group))
+                        yield return obj;
+                }
+            }
+            */
+            
+            var backstage = ribbon.Menu as Fluent.Backstage;
+            var backstageTabs = backstage.Content as Fluent.BackstageTabControl;
+            BindingScope.GetNamedElements(backstageTabs);
+
+            foreach (var backstageTab in backstageTabs.Items)
+            {
+                ///foreach (var obj in BindingScope.GetNamedElements(backstageTab))
+                if (backstageTab is ContentControl)
+                    foreach (var obj in BindingScope.GetNamedElements((ContentControl)backstageTab))
+                        yield return obj;
+            }
+            
+            
+        }
+        
+
+    }
 }

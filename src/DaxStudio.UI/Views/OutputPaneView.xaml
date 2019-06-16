@@ -31,7 +31,7 @@
         <ListView x:Name="Messages" HorizontalAlignment="Stretch"  
             behaviours:GridViewColumnResize.Enabled="True"
             extenders:ListViewExtenders.AutoScrollToEnd="True"
-            Focusable="False">
+            Focusable="False" Background="Transparent">
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="" Width="Auto">
@@ -63,7 +63,7 @@
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <Grid HorizontalAlignment="Right">
-                                <TextBlock TextAlignment="Right" HorizontalAlignment="Right" Text="{Binding Duration}"></TextBlock>
+                                <TextBlock TextAlignment="Right" HorizontalAlignment="Right" Text="{Binding DurationString}"></TextBlock>
                                 </Grid>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>

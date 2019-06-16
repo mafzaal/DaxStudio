@@ -27,7 +27,11 @@
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 ;AppId={{2DDF2B91-978D-4B47-AF1C-15E6C07ADEAD}
 AppId={{CE2CEA93-9DD3-4724-8FE3-FCBF0A0915C1}
-AppName={#MyAppName}
+#ifdef Preview
+AppName={#MyAppName} {#myAppMajor}.{#myAppMinor}.{#myAppRevision} ({#Preview})
+#else
+AppName={#MyAppName} {#myAppMajor}.{#myAppMinor}.{#myAppRevision}
+#endif
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -40,7 +44,7 @@ DefaultGroupName={#MyAppName}
 UseSetupLdr=Yes
 
 
-LicenseFile=eula.rtf
+LicenseFile=..\license.rtf
 ;OutputBaseFilename=DaxStudio_{#MyAppFileVersion}_setup
 OutputBaseFilename=DaxStudioPerUser_{#myAppMajor}_{#myAppMinor}_{#myAppRevision}_setup
 OutputDir=..\package
@@ -63,6 +67,15 @@ DisableDirPage=auto
 DisableProgramGroupPage=auto
 
 UninstallDisplayIcon={app}\daxstudio.exe
+
+[Messages]
+; define wizard title and tray status msg
+; both are normally defined in innosetup's default.isl (install folder)
+#ifdef Preview
+SetupWindowTitle={#MyAppName} {#myAppMajor}.{#myAppMinor}.{#myAppRevision} {#Preview}
+#else
+SetupWindowTitle={#MyAppName} {#myAppMajor}.{#myAppMinor}.{#myAppRevision}
+#endif
 
 [Languages]
 ;Name: "english"; MessagesFile: "compiler:Default.isl"

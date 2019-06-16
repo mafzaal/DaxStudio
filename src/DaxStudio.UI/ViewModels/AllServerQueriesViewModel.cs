@@ -5,7 +5,7 @@ using DaxStudio.UI.Events;
 using DaxStudio.UI.Interfaces;
 using DaxStudio.QueryTrace;
 using DaxStudio.Interfaces;
-using DaxStudio.UI.Models;
+using DaxStudio.UI.Model;
 using System.IO;
 using Newtonsoft.Json;
 using System.Text;
@@ -14,31 +14,40 @@ using System.Linq;
 using System.ComponentModel;
 using System.Windows.Data;
 using System.Collections.ObjectModel;
+using System;
 
 namespace DaxStudio.UI.ViewModels
 {
 
     class AllServerQueriesViewModel
-        : TraceWatcherBaseViewModel, ISaveState , IViewAware
+        : TraceWatcherBaseViewModel, 
+        ISaveState, 
+        IViewAware 
         
     {
+        private Dictionary<string, AggregateRewriteSummary> _rewriteEventCache = new Dictionary<string, AggregateRewriteSummary>();
+        private IGlobalOptions _globalOptions;
         [ImportingConstructor]
         public AllServerQueriesViewModel(IEventAggregator eventAggregator, IGlobalOptions globalOptions) : base(eventAggregator, globalOptions)
         {
             _queryEvents = new BindableCollection<QueryEvent>();
+            _globalOptions = globalOptions;
             QueryTypes = new ObservableCollection<string>();
             QueryTypes.Add("DAX");
             QueryTypes.Add("Dmx");
             QueryTypes.Add("Mdx");
             QueryTypes.Add("Sql");
         }
-        
+
+
         public ObservableCollection<string> QueryTypes { get; set; }
 
         protected override List<DaxStudioTraceEventClass> GetMonitoredEvents()
         {
             return new List<DaxStudioTraceEventClass>
-                { DaxStudioTraceEventClass.QueryEnd};
+                { DaxStudioTraceEventClass.QueryEnd,
+                  DaxStudioTraceEventClass.AggregateTableRewriteQuery
+            };
         }
 
         // This method is called after the WaitForEvent is seen (usually the QueryEnd event)
@@ -49,19 +58,55 @@ namespace DaxStudio.UI.ViewModels
 
             if (Events != null) {
                 foreach (var traceEvent in Events) {
-                    QueryEvents.Insert(0,new QueryEvent() {
-                        QueryType = traceEvent.EventSubclassName.Substring(0,3).ToUpper(),
+                    var newEvent = new QueryEvent()
+                    {
+                        QueryType = traceEvent.EventSubclassName.Substring(0, 3).ToUpper(),
                         StartTime = traceEvent.StartTime,
-                        //EndTime = traceEvent.EndTime,
                         Username = traceEvent.NTUserName,
                         Query = traceEvent.TextData,
                         Duration = traceEvent.Duration,
-                        DatabaseName = traceEvent.DatabaseFriendlyName
-                        
-                    });
+                        DatabaseName = traceEvent.DatabaseFriendlyName,
+                        RequestID = traceEvent.RequestID
+                    };
+
+                    switch (traceEvent.EventClass) {
+                        case DaxStudioTraceEventClass.QueryEnd:
+                            // look for any cached rewrite events
+                            if (_rewriteEventCache.ContainsKey(traceEvent.RequestID))
+                            {
+                                var summary = _rewriteEventCache[traceEvent.RequestID];
+                                newEvent.AggregationMatchCount = summary.MatchCount;
+                                newEvent.AggregationMissCount = summary.MissCount;
+                                _rewriteEventCache.Remove(traceEvent.RequestID);
+                            }
+                            QueryEvents.Insert(0, newEvent);
+                            break;
+                        case DaxStudioTraceEventClass.AggregateTableRewriteQuery:
+                            // cache rewrite events
+                            var rewriteSummary = new AggregateRewriteSummary(traceEvent.RequestID, traceEvent.TextData);
+                            if (_rewriteEventCache.ContainsKey(traceEvent.RequestID)) {
+                                var summary = _rewriteEventCache[key: traceEvent.RequestID];
+                                summary.MatchCount += rewriteSummary.MatchCount;
+                                summary.MissCount += rewriteSummary.MissCount;
+                                _rewriteEventCache[key: traceEvent.RequestID] = summary;
+                            }
+                            else
+                            {
+                                _rewriteEventCache.Add(traceEvent.RequestID, rewriteSummary);
+                            }
+
+                            break;
+                    }
                 }
                 
                 Events.Clear();
+
+                // Clear out any cached rewrite events older than 10 minutes
+                var toRemoveFromCache = _rewriteEventCache.Where((kvp) => kvp.Value.UtcCurrentTime > DateTime.UtcNow.AddMinutes(10)).Select(c => c.Key).ToList();
+                foreach (var requestId in toRemoveFromCache)
+                {
+                    _rewriteEventCache.Remove(requestId);
+                }
 
                 NotifyOfPropertyChange(() => QueryEvents);
                 NotifyOfPropertyChange(() => CanClearAll);
@@ -73,7 +118,6 @@ namespace DaxStudio.UI.ViewModels
         private readonly BindableCollection<QueryEvent> _queryEvents;
         
         public new bool CanHide { get { return true; } }
-        //public event EventHandler<ViewAttachedEventArgs> ViewAttached;
 
         public IObservableCollection<QueryEvent> QueryEvents 
         {
@@ -197,6 +241,7 @@ namespace DaxStudio.UI.ViewModels
                 controller.SetFiltersForColumns(filters);
             }
         }
+
 
         #endregion
 

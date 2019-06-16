@@ -15,6 +15,37 @@ namespace DaxStudio.UI.Utils
 
     public static class ModelAnalyzer
     {
+        public static DataTable RecoverColumnExpressions(ADOTabularConnection connection)
+        {
+            /*
+             *  [TABLE] AS [Table], 
+                [OBJECT] as [Column], 
+                TRIM ( [EXPRESSION] ) as [Expression],
+                '' AS [Description]
+             */
+            var result = new DataTable("ColumnExpressions");
+            result.Columns.Add("Table", typeof(string));
+            result.Columns.Add("Column", typeof(string));
+            result.Columns.Add("Expression", typeof(string));
+            result.Columns.Add("Description", typeof(string));
+
+            foreach (var tbl in connection.Database.Models[0].Tables)
+            {
+                foreach (var col in tbl.Columns)
+                {
+                    if (col.ObjectType == ADOTabularObjectType.Column && col.MeasureExpression.Length > 0)
+                    {
+                        var row = result.NewRow();
+                        row["Table"] = tbl.Caption;
+                        row["Column"] = col.Caption;
+                        row["Expression"] = col.MeasureExpression;
+                        row["Description"] = "";
+                        result.Rows.Add(row);
+                    }
+                }
+            }
+            return result;
+        }
 
         private class ModelAnalyzerRelationship
         {
@@ -74,7 +105,8 @@ namespace DaxStudio.UI.Utils
             /// However, it is possible to create multiple versions of the same table 
             /// with different compatibility levels (to enable support with different and older reports)
             /// </summary>
-            public int MaxCompatibilityLevel = int.MaxValue; 
+            public int MaxCompatibilityLevel = int.MaxValue;
+            public Func<ADOTabularConnection, DataTable> RecoverFunction;
         }
 
 
@@ -195,6 +227,7 @@ ORDER BY [DIMENSION_NAME] + '_' + [TABLE_ID] ASC
                      MinCompatibilityLevel = 1100,
                      Query = @"
 SELECT DISTINCT 
+    '' as [TableID],
     [MEASUREGROUP_NAME] as [Table], 
     [MEASURE_NAME] as [Measure], 
     TRIM ( [Expression] ) as [Expression], 
@@ -218,6 +251,7 @@ ORDER BY [MEASUREGROUP_NAME] + '_' + [MEASURE_NAME] ASC
                      Query = @"
 SELECT
     [TableID],
+    null as [Table],
     [Name] AS [Measure],
     TRIM ( [Expression] ) as [Expression], 
     [Description],
@@ -243,14 +277,18 @@ FROM $SYSTEM.DISCOVER_CALC_DEPENDENCY
 WHERE OBJECT_TYPE = 'CALC_COLUMN'  
 ORDER BY [TABLE] + '_' + [OBJECT] ASC
 "
+                    ,RecoverFunction = ModelAnalyzer.RecoverColumnExpressions
                  },
-                new ModelAnalyzerTable()
+
+
+        new ModelAnalyzerTable()
                  {
                      TableName = "ColumnsMetadata",
                      MinCompatibilityLevel = 1200,
                      Query = @"
 SELECT    
     [TableID],    
+    null as [Table],
     [ID] AS [ColumnID],    
     [ExplicitName],
     [InferredName],
@@ -282,6 +320,40 @@ SELECT
     [ErrorMessage]
 FROM $SYSTEM.TMSCHEMA_COLUMNS
 ORDER BY [TableID] ASC
+"
+                 },
+        new ModelAnalyzerTable()
+                 {
+                     TableName = "ColumnsStorages",
+                     MinCompatibilityLevel = 1200,
+                     Query = @"
+SELECT
+    [ColumnID],
+    [StoragePosition],
+    [DictionaryStorageID],
+    [Settings],
+    [ColumnFlags],
+    [Collation],
+    [OrderByColumn],
+    [Locale],
+    [BinaryCharacters],
+    [Statistics_DistinctStates],
+    [Statistics_MinDataID],
+    [Statistics_MaxDataID],
+    [Statistics_OriginalMinSegmentDataID],
+    [Statistics_RLESortOrder],
+    [Statistics_RowCount],
+    [Statistics_HasNulls],
+    [Statistics_RLERuns],
+    [Statistics_OthersRLERuns],
+    [Statistics_Usage],
+    [Statistics_DBType],
+    [Statistics_XMType],
+    [Statistics_CompressionType],
+    [Statistics_CompressionParam],
+    [Statistics_EncodingHint]
+FROM $SYSTEM.TMSCHEMA_COLUMN_STORAGES
+ORDER BY [ColumnID] ASC
 "
                  },
                 new ModelAnalyzerTable()
@@ -385,7 +457,7 @@ ORDER BY [TableID] ASC
 
             foreach (var qry in GetQueries()) {
                 // skip over this query if the compatibility level is not supported for the current database
-                if (qry.MinCompatibilityLevel >= db.CompatibilityLevel) continue;
+                if (qry.MinCompatibilityLevel > db.CompatibilityLevel) continue;
                 if (qry.MaxCompatibilityLevel < db.CompatibilityLevel) continue;
                 try
                 {
@@ -407,12 +479,47 @@ ORDER BY [TableID] ASC
             }
 
             // replace some of the lookups between tables
+            PostProcessColumnMetadata(result);
+            PostProcessMeasureExpressions(result);
             PostProcessColumCardinality(result);
             PostProcessTables(result);
             PostProcessUnusedColumns(db, result);
             AddRelationshipsTable(db, result);
 
+            
+
             return result;
+        }
+
+        private static void PostProcessColumnMetadata(DataSet result)
+        {
+            UpdateTableName(result, "ColumnsMetadata.1200");
+        }
+
+        private static void PostProcessMeasureExpressions(DataSet result)
+        {
+            var measureExpressions1100 = result.Tables["MeasuresExpressions.1100"];
+            var measureExpressions1200 = result.Tables["MeasuresExpressions.1200"];
+            // todo - union measureExpressions 1100 & 1200 and update name if null
+            if (measureExpressions1200 != null && measureExpressions1200.Rows.Count > 0)
+            {
+                measureExpressions1200.TableName = "MeasureExpressions";
+                UpdateTableName(result, "MeasureExpressions");
+            } else
+            {
+                measureExpressions1100.TableName = "MeasureExpressions";
+            }
+
+        }
+
+        private static void UpdateTableName(DataSet result, string tableName)
+        {
+            var tables = result.Tables["TablesMetadata.1200"];
+            var tableToUpdate = result.Tables[tableName];
+            foreach (DataRow row in tableToUpdate.Rows)
+            {
+                row["Table"] = tables.Select("TableID = " + row["TableID"].ToString())[0]["Table"];
+            }
         }
 
         private static void PostProcessUnusedColumns(Microsoft.AnalysisServices.Database db, DataSet result)
@@ -527,6 +634,10 @@ ORDER BY [TableID] ASC
             
             foreach (DataRow columnRow in columnCardinalityTable.Rows)
             {
+                // TODO: We might get the COLUMN_CARDINALITY from the Columns Storages table if available, 
+                //       so we keep compatibility in case IsAvailableInMDX is set to false and column hierarchy is not available
+                //       by doing this we can remove the calculated column in VertiPaq Analyzer to compute the right estimate
+                //       Marco - 2018-05-22
                 string columnName = columnRow["COLUMN_HIERARCHY_ID"].ToString();
                 columnName = columnName.Split('$')[2];
                 var filterExpression = string.Format("TABLE_NAME = '{0}' and COLUMN_ID = '{1}'", columnRow["TABLE_NAME"], columnName);
@@ -544,5 +655,7 @@ ORDER BY [TableID] ASC
                 }
             }
         }
+
+        
     }
 }

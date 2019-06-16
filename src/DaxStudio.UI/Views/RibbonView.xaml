@@ -6,15 +6,16 @@
              xmlns:Fluent="clr-namespace:Fluent;assembly=Fluent"
              xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
              xmlns:cal="clr-namespace:Caliburn.Micro;assembly=Caliburn.Micro.Platform"
-             xmlns:local="clr-namespace:DaxStudio.UI.Utils" 
+             xmlns:local="clr-namespace:DaxStudio.UI.Resources" 
              xmlns:conv="clr-namespace:DaxStudio.UI.Converters"
              xmlns:beh="clr-namespace:DaxStudio.UI.Behaviours"
              mc:Ignorable="d" 
-             d:DesignHeight="137" d:DesignWidth="654">
+             d:DesignWidth="980">
     <UserControl.Resources>
         <ResourceDictionary>
 
             <ResourceDictionary.MergedDictionaries>
+                <local:DesignTimeResourceDictionary DesignTimeSource="pack://application:,,,/Fluent;component/Themes/Generic.xaml"/>
                 <ResourceDictionary  Source="pack://application:,,,/DaxStudio.UI;Component/Resources/IconResourceDictionary.xaml"/>
                 <ResourceDictionary  Source="pack://application:,,,/DaxStudio.UI;Component/Resources/DaxStudioResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
@@ -36,11 +37,9 @@
         </conv:ResourceLookupConverter>
 
         <conv:BoolToCollapsedConverter x:Key="BoolToVisibilityConverter"/>
-        <!--<SolidColorBrush x:Key="DaxStudioBackgroundBrush" Color="#FF449ADE"></SolidColorBrush>
-        <SolidColorBrush x:Key="BackstageBackgroundBrush" Color="#FF24B010"></SolidColorBrush>-->
         
         <DataTemplate x:Key="ResultsTargetTemplate">
-            <Border Tag="Excel"
+            <Border 
                         BorderThickness="4"
                         BorderBrush="Transparent">
                 <StackPanel>
@@ -82,8 +81,8 @@
             
         </ResourceDictionary>
     </UserControl.Resources>
-            
-        <Fluent:Ribbon Height="Auto" CanCustomizeQuickAccessToolBar="False" CanCustomizeQuickAccessToolBarItems="False">    
+
+    <Fluent:Ribbon Height="Auto" CanCustomizeQuickAccessToolBar="True" CanCustomizeQuickAccessToolBarItems="True" >    
         <Fluent:Ribbon.Resources>
 
             <DataTemplate x:Key="TraceWatcherTemplate">
@@ -108,6 +107,7 @@
         </Fluent:Ribbon.Resources>
 
         <!--Backstage-->
+            
         <Fluent:Ribbon.Menu>
             
             <Fluent:Backstage x:Name="Backstage">
@@ -138,7 +138,7 @@
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200" />
-                                <ColumnDefinition Width="*"></ColumnDefinition>
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="Open" FontSize="56" 
                                        Foreground="{StaticResource DaxStudioBrush}"
@@ -149,13 +149,15 @@
                             <StackPanel HorizontalAlignment="Left" Grid.Column="0" Margin="10px" Grid.Row="1">
                                 <Border>
                                     <!-- style comes from ribbon control -->
-                                    <Fluent:Button Style="{DynamicResource ButtonBackstageStyle}" 
-                                           BorderBrush="DimGray"  
-                                           BorderThickness="1" 
-                                           LargeIcon="{StaticResource BrowseIconLarger}"
-                                           Header="Browse"
-                                           SizeDefinition="Large"
-                                           Height="100" Width="100" Foreground="Black">
+                                    <!-- Style="{DynamicResource ButtonBackstageStyle}" -->
+                                    <Fluent:Button 
+                                        Style="{DynamicResource ButtonBackstageStyle}"
+                                        BorderBrush="DimGray"  
+                                        BorderThickness="1" 
+                                        LargeIcon="{StaticResource BrowseIconLarger}"
+                                        Header="Browse"
+                                        SizeDefinition="Large"
+                                        Height="100" Width="100" Foreground="Black">
                                            
                                         <i:Interaction.Triggers>
                                             <i:EventTrigger EventName="Click">
@@ -167,13 +169,23 @@
                                 </Border>
                             </StackPanel>
                             
-                            <StackPanel HorizontalAlignment="Left" Margin="20,0" Grid.Column="1" Grid.Row="1">
-                                <Label FontSize="24" Foreground="DimGray" FontWeight="Light">Recent Documents</Label>
+                            <Grid HorizontalAlignment="Stretch" Margin="5,0" Grid.Column="1" Grid.Row="1" >
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label FontSize="24" Foreground="DimGray" FontWeight="Light" Grid.Row="0">Recent Documents</Label>
                                 <ListView x:Name="RecentFiles" 
+                                          Background="Transparent"
                                           DataContext="{Binding}" 
-                                          ItemsSource="{Binding Path=Ribbon.RecentFiles}" 
+                                          ItemsSource="{Binding Path=RecentFiles}" 
                                           MinWidth="600"
-                                          BorderBrush="Transparent" >
+                                          BorderBrush="Transparent" 
+                                          Grid.Row="1"
+                                          HorizontalContentAlignment="Stretch">
                                     <!-- cal:Message.Attach="[Event MouseLeftButtonUp] = [Action OpenRecentFile(RecentFiles.SelectedItem, {Binding ElementName=Backstage})]"  -->
                                     <i:Interaction.Triggers>
                                         <i:EventTrigger EventName="MouseLeftButtonUp" >
@@ -200,7 +212,7 @@
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
+                            </Grid>
                         </Grid> 
                     </Fluent:BackstageTabItem>
                     <!--<Fluent:Button x:Name="NewQuery" Header="New Query"></Fluent:Button>-->
@@ -225,7 +237,8 @@
                         </i:Interaction.Triggers>
 
                     </Fluent:Button>
-                    <!--<Fluent:Button Name="btnPublishDaxFunctions" Header="Publish DAX Functions" Foreground="White">
+                    <!--
+                    <Fluent:Button Name="btnPublishDaxFunctions" Header="Publish DAX Functions" Foreground="White">
                         <i:Interaction.Triggers>
                             <i:EventTrigger EventName="Click">
                                 <cal:ActionMessage MethodName="PublishDaxFunctions">
@@ -243,10 +256,10 @@
                             </i:EventTrigger>
                         </i:Interaction.Triggers>
 
-                    </Fluent:Button>-->
-
+                    </Fluent:Button>
+-->
                     <Fluent:BackstageTabItem Header="Options"  >
-                        <ContentControl x:Name="Options" cal:View.Model="{Binding Path=Ribbon.Options}" />
+                        <ContentControl x:Name="Options" cal:View.Model="{Binding Path=Options}" />
                     </Fluent:BackstageTabItem>
                     
                     <Fluent:Button Name="btnExit" Header="Exit" Foreground="White">
@@ -263,40 +276,37 @@
         </Fluent:Ribbon.Menu>
 
         <Fluent:Ribbon.QuickAccessItems>
-<!--
-            <Fluent:QuickAccessMenuItem Header="New" 
-                                        IsChecked="True"
-                                        Target="{Binding ElementName=NewQueryQat}"
-                                        Command="{Binding NewQuery}"
-                                        Icon="{StaticResource NewIconSmall}"
-                                        IsDefinitive="True"
-                                        >
-                <i:Interaction.Triggers>
-                    <i:EventTrigger EventName="Click">
-                        <cal:ActionMessage MethodName="NewQuery">
 
-                        </cal:ActionMessage>
-                    </i:EventTrigger>
-                </i:Interaction.Triggers>
+            <!--<Fluent:QuickAccessMenuItem IsChecked="True" Target="{Binding ElementName=newButtonQat}" />
+            <Fluent:QuickAccessMenuItem IsChecked="True" Target="{Binding ElementName=saveButtonQat}"/>-->
+
+            <!--<Fluent:QuickAccessMenuItem IsChecked="True" >
+                <Fluent:Button Header="Save" Icon="{StaticResource SaveIcon}" Name="qatSave">
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="Click">
+                            <cal:ActionMessage MethodName="Save">
+
+                            </cal:ActionMessage>
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
+                </Fluent:Button>
             </Fluent:QuickAccessMenuItem>
-            
-            <Fluent:QuickAccessMenuItem Target="{Binding ElementName=saveButton}" 
-                                        Command="{Binding Save}"
-                                        Icon="{StaticResource SaveIcon}"
-                                        IsChecked="True"
-                                        IsDefinitive="True">
-                <i:Interaction.Triggers>
-                    <i:EventTrigger EventName="Click">
-                        <cal:ActionMessage MethodName="Save">
 
-                        </cal:ActionMessage>
-                    </i:EventTrigger>
-                </i:Interaction.Triggers>
-            </Fluent:QuickAccessMenuItem>
-    -->        
-            </Fluent:Ribbon.QuickAccessItems>
+            <Fluent:QuickAccessMenuItem IsChecked="True" >
+                <Fluent:Button Header="New" Icon="{StaticResource NewIconSmall}" Name="qatNew" >
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="Click">
+                            <cal:ActionMessage MethodName="NewQuery">
+                            </cal:ActionMessage>
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
+                </Fluent:Button>
+            </Fluent:QuickAccessMenuItem>-->
 
+        </Fluent:Ribbon.QuickAccessItems>
+  
         <!-- Home Tabs-->
+        
         <Fluent:RibbonTabItem Header="Home" ReduceOrder="Query, 
                               Connection,Query,Connection,Connection,
                               Traces,Traces,Traces,
@@ -306,12 +316,9 @@
                               Format,Format,
                               Find,Find,
                               Edit,Edit
-                              ">
+                              "
+                              >
             <Fluent:RibbonGroupBox Header="Query" Name="Query" Margin="4,0" Icon="{StaticResource PlanIcon}">
-                <!-- 
-                Icon="{StaticResource PlayIcon}"
-                               LargeIcon="{StaticResource PlayIconLarger}"
-                -->
                 <Fluent:SplitButton Name="RunQuery"
                                Header="Run"
                                cal:Message.Attach="[Event Click] = [Action RunQuery()]"
@@ -327,6 +334,7 @@
                                            ></Fluent:ScreenTip>
                     </Fluent:SplitButton.ToolTip>
                     <Fluent:Gallery
+                        x:Name="RunStyles"
                         ItemWidth="80"
                         ItemHeight="80"
                         MaxItemsInRow="1"
@@ -365,42 +373,53 @@
                                           ></Fluent:ScreenTip>
                     </Fluent:Button.ToolTip>
                 </Fluent:Button>
+        
                 <!-- Output Targets -->
-                <Fluent:DropDownButton Name="Output"
+
+                <Fluent:DropDownButton x:Name="OutputTargets"
                                            Header="Output"
                                            Icon="{Binding Path=SelectedTarget.Name,Converter={StaticResource OutputIcons}}"
-                                           LargeIcon="{Binding Path=SelectedTarget.Name,Converter={StaticResource OutputIcons}}"
+                                           LargeIcon="{Binding Path=SelectedTarget.Name,Converter={StaticResource OutputIconsLarger}}"
+                                           SizeDefinition="Large,Large,Small"
                                            IsEnabled="True"
-                                           VerticalAlignment="Top"  Margin="4,0">
+                                           VerticalAlignment="Top"  Margin="4,0"
+                                       >
+
+                    <!--Icon="{Binding Path=SelectedTarget.Name,Converter={StaticResource OutputIcons}}"-->
 
                     <Fluent:Gallery 
                         SelectedFilter="{Binding ElementName=galleryFilterAll3}"
                         GroupBy="Group"
-                        x:Name="OutputGallery"
+                        x:Name="OutputGallery2"
+                                               
                         MinItemsInRow="1"
                         MaxItemsInRow="4"
                         Orientation="Horizontal"
                         ItemWidth="80"
                         ItemHeight="80"
-                        ItemsSource="{Binding ResultsTargets}"
+                        ItemsSource="{Binding ResultsTargets}" 
                         SelectedItem="{Binding SelectedTarget}"
                         ItemTemplate="{DynamicResource ResultsTargetTemplate}">
 
                         <Fluent:Gallery.Filters>
                             <Fluent:GalleryGroupFilter Title="All"
-                                                           Groups="Standard,Excel,Undefined"
-                                                           x:Name="galleryFilterAll3" />
+                                                       Groups="Standard,Excel,Undefined"
+                                                       x:Name="galleryFilterAll3" />
                             <Fluent:GalleryGroupFilter Title="Standard"
-                                                           Groups="Standard" />
+                                                       Groups="Standard"
+                                                       x:Name="galleryFilterStandard"/>
                             <Fluent:GalleryGroupFilter Title="Excel"
-                                                           Groups="Excel" />
+                                                       Groups="Excel"
+                                                       x:Name="galleryFilterExcel"/>
                         </Fluent:Gallery.Filters>
 
                     </Fluent:Gallery>
+
                     <Fluent:DropDownButton.ToolTip>
                         <Fluent:ScreenTip Title="Output Target" Text="This specifies where the query results get sent" Width="190" />
                     </Fluent:DropDownButton.ToolTip>
                 </Fluent:DropDownButton>
+
             </Fluent:RibbonGroupBox>
             
             
@@ -483,35 +502,52 @@
                     </Fluent:Button.ToolTip>
                 </Fluent:Button>
 
-                <Fluent:Button x:Name="saveButton"
+                
+            </Fluent:RibbonGroupBox>
+
+            <!-- Hidden Save Button for Quicklink target -->
+            <Fluent:RibbonGroupBox Visibility="Collapsed">
+            <Fluent:Button Name="saveButtonQat"
                                Header="Save"
                                Fluent:KeyTip.Keys="S"
                                cal:Message.Attach="[Event Click] = [Action Save()]"
-                               Icon="{StaticResource CommentIcon}"
+                               Icon="{StaticResource SaveIcon}"
                                SizeDefinition="Middle,Small,Small"
-                               Visibility="Hidden"
+                               Margin="4,0">
+                <Fluent:Button.ToolTip>
+                    <Fluent:ScreenTip Title="Save (Ctrl+S)"
+                                          Text="Saves the current document"
+                                           ></Fluent:ScreenTip>
+                </Fluent:Button.ToolTip>
+            </Fluent:Button>
+
+                <Fluent:Button Name="newButtonQat"
+                               Header="New"
+                               Fluent:KeyTip.Keys="N"
+                               cal:Message.Attach="[Event Click] = [Action NewQuery()]"
+                               Icon="{StaticResource NewIconSmall}"
+                               SizeDefinition="Middle,Small,Small"
                                Margin="4,0">
                     <Fluent:Button.ToolTip>
-                        <Fluent:ScreenTip Title="Save (Ctrl+S)"
-                                          Text="Saves the current document"
+                        <Fluent:ScreenTip Title="New (Ctrl+N)"
+                                          Text="Opens a new document"
                                            ></Fluent:ScreenTip>
                     </Fluent:Button.ToolTip>
                 </Fluent:Button>
-
-
             </Fluent:RibbonGroupBox>
+
 
             <Fluent:RibbonGroupBox Header="Format" Name="Format" Margin="4,0" Icon="{StaticResource ToUpperIcon}">
                 <Fluent:Button Name="FormatQuery"
                                Header="Format Query"
-                               cal:Message.Attach="[Event Click] = [Action FormatQuery()]"
+                               cal:Message.Attach="[Event Click] = [Action FormatQueryStandard()]"
                                Icon="{StaticResource DaxFormatterIcon}"
                                LargeIcon="{StaticResource DaxFormatterIcon}" 
                                SizeDefinition="Large,Large,Large"
                                Margin="0,0,10,0"
                                FocusManager.IsFocusScope="True">
                     <Fluent:Button.ToolTip>
-                        <Fluent:ScreenTip Title="Format Query"
+                        <Fluent:ScreenTip Title="Format Query (F6)"
                                           Text="Uses DaxFormatter.com to provide a nicely formatted query and highlight syntax errors"
                                            ></Fluent:ScreenTip>
                     </Fluent:Button.ToolTip>
@@ -558,7 +594,6 @@
                                            ></Fluent:ScreenTip>
                     </Fluent:Button.ToolTip>
                 </Fluent:Button>
-                <!--<Fluent:Button Visibility="Hidden" Width="1"></Fluent:Button>-->
                 
                  <Fluent:Button Name="CommentSelection"
                                Header="Comment"
@@ -572,6 +607,7 @@
                                            ></Fluent:ScreenTip>
                         </Fluent:Button.ToolTip>
                     </Fluent:Button>
+                
                     <Fluent:Button Name="UncommentSelection"
                                Header="Uncomment"
                                cal:Message.Attach="[Event Click] = [Action UncommentSelection()]"
@@ -610,28 +646,40 @@
                         <Fluent:ScreenTip Title="Find (Ctrl-F)" Text="Find text within the current query" Width ="190"/>
                     </Fluent:Button.ToolTip>
                 </Fluent:Button>
-                <!-- cal:Message.Attach="[Event Click] = [Action Find()]" -->
                 <Fluent:Button Header="Replace" 
                                Command="Replace"
                                Icon="{StaticResource ReplaceIconSmall}"
                                SizeDefinition="Middle,Small,Small"
                                Fluent:KeyTip.Keys="H"
                                FocusManager.IsFocusScope="True">
-                <!-- cal:Message.Attach="[Event Click] = [Action Replace()]" -->
                 <Fluent:Button.ToolTip>
                     <Fluent:ScreenTip Title="Replace (Ctrl-H)" Text="Replace text within the current query" Width ="190"/>
                 </Fluent:Button.ToolTip>
                 </Fluent:Button>
             </Fluent:RibbonGroupBox>
-            
-            
+
+            <Fluent:RibbonGroupBox Header="Power BI" 
+                                   Name="PowerBI" 
+                                   Margin="0,0" 
+                                   >
+                <Fluent:Button Name="ImportPowerBIPerfData" 
+                               Header="Load Perf Data" 
+                               cal:Message.Attach="[Event Click] = [Action LoadPowerBIPerformanceData()]"
+                               Icon="{StaticResource RefreshIcon}"
+                               LargeIcon="{StaticResource LoadPBIPerfDataIcon}"
+                               Margin="4,0"
+                               SizeDefinition="Large,Large,Small"
+                               />
+            </Fluent:RibbonGroupBox>
+
+
             <Fluent:RibbonGroupBox Header="Traces" Name="Traces" ItemsSource="{Binding TraceWatchers}"
                                    Icon="{StaticResource PlanIconSmall}"
                                    ItemTemplate="{DynamicResource TraceWatcherTemplate}"
                                    >
                 
             </Fluent:RibbonGroupBox>
-            <Fluent:RibbonGroupBox Header="Server Timings" Name="ServerTimings" Margin="4,0" IsEnabled="{Binding ServerTimingsIsChecked}"
+            <Fluent:RibbonGroupBox Header="Server Timings" Name="ServerTimings" Margin="4,0" IsEnabled="{Binding ServerTimingsIsChecked, Mode=OneWay}"
                                    Icon="{StaticResource TimerIcon}">
                 <Fluent:ToggleButton x:Name="TimingsScan" IsChecked="{Binding ServerTimingDetails.ShowScan, Mode=TwoWay}" 
                                 IsEnabled="{Binding ServerTimingsChecked}"
@@ -669,7 +717,19 @@
                                            />
                     </Fluent:ToggleButton.ToolTip>
                 </Fluent:ToggleButton>
-
+                <Fluent:ToggleButton x:Name="TimingsBatch" IsChecked="{Binding ServerTimingDetails.ShowBatch, Mode=TwoWay}" 
+                                IsEnabled="{Binding ServerTimingsChecked}"
+                                Header="Batch"
+                                Icon="{StaticResource TimingsBatch}"
+                                SizeDefinition="Middle,Middle,Small"
+                                >
+                    <Fluent:ToggleButton.ToolTip>
+                        <Fluent:ScreenTip Title="Batch"
+                                          Text="Show batch events"
+                                           />
+                    </Fluent:ToggleButton.ToolTip>
+                </Fluent:ToggleButton>
+                
 
                 <Fluent:ToggleButton x:Name="TimingsRightPane" 
                                 IsChecked="{Binding ServerTimingDetails.LayoutRight, Mode=TwoWay}" 
@@ -705,7 +765,7 @@
                                Header="Connect"
                                Icon="{StaticResource ConnectIcon}"
                                LargeIcon="{StaticResource ConnectIconLarger}" 
-                               Margin="4,0"
+                               Margin="0,0"
                                cal:Message.Attach="[Event Click] = [Action Connect()]" 
                                SizeDefinition="Large,Large,Small">
                     <Fluent:Button.ToolTip>
@@ -723,7 +783,7 @@
                                cal:Message.Attach="[Event Click] = [Action RefreshMetadata()]"
                                Icon="{StaticResource RefreshIcon}"
                                LargeIcon="{StaticResource RefreshIconLarger}"
-                               Margin="4,0"
+                               Margin="0,0"
                                SizeDefinition="Large,Large,Small"
                                >
                     <Fluent:Button.ToolTip>
@@ -733,31 +793,123 @@
                                           ></Fluent:ScreenTip>
                     </Fluent:Button.ToolTip>
                 </Fluent:Button>
-            </Fluent:RibbonGroupBox>
+
+                </Fluent:RibbonGroupBox>
                  
         </Fluent:RibbonTabItem>
 
-            <!-- DEBUG Ribbon -->
-        <Fluent:RibbonTabItem Header="Debug" Visibility="{Binding IsDebugBuild, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Fluent:RibbonGroupBox Header="Analysis">
+            <!-- Advanced Ribbon Tab-->
+       
+        <Fluent:RibbonTabItem Header="Advanced" Visibility="{Binding ShowAdvancedTab, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Fluent:RibbonGroupBox Header="Export" Visibility="{Binding ShowExportGroup, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Fluent:Button Name="ExportAnalysisData"
-                                   Header="Export Analysis Data"
+                                   Header="Export Metrics"
                                    cal:Message.Attach="[Event Click] = [Action ExportAnalysisData()]"
-                                   Icon="{StaticResource RefreshIcon}"
-                                   LargeIcon="{StaticResource RefreshIconLarger}"
+                                   Icon="{StaticResource ExportMetricsIcon}"
+                                   LargeIcon="{StaticResource ExportMetricsIconLarger}"
+                                   Margin="4,0"
+                                   SizeDefinition="Large,Large,Small"
+                                   Visibility="{Binding ShowExportMetrics, Converter={StaticResource BoolToVisibilityConverter}}"
+                                   >
+                    <Fluent:Button.ToolTip>
+                        <Fluent:ScreenTip Title="Export Metrics"
+                                   Text="Exports information and metrics about your model to allow for detailed analysis of the model design. This export only includes metadata, no actual data is included."
+                                   DisableReason="{Binding ClearCacheDisableReason}"
+                                   ></Fluent:ScreenTip>
+                    </Fluent:Button.ToolTip>
+                </Fluent:Button>
+                
+                    <Fluent:Button Name="ExportAllData"
+                                   Header="Export Data"
+                                   cal:Message.Attach="[Event Click] = [Action ExportAllData()]"
+                                   Icon="{StaticResource ExportAllDataIconLarger}"
+                                   LargeIcon="{StaticResource ExportAllDataIconLarger}"
+                                   Margin="4,0"
+                                   SizeDefinition="Large,Large,Small"
+                                   Visibility="{Binding ShowExportAllData, Converter={StaticResource BoolToVisibilityConverter}}"
+                                   >
+                        <Fluent:Button.ToolTip>
+                            <Fluent:ScreenTip Title="Export Data"
+                                   Text="Exports data from your tabular database to CSV files or SQL Server tables."                                
+                                   ></Fluent:ScreenTip>
+                        </Fluent:Button.ToolTip>
+                    </Fluent:Button>
+                
+            </Fluent:RibbonGroupBox>
+            <Fluent:RibbonGroupBox Header="External Tools" Visibility="{Binding ShowExternalTools, Converter={StaticResource BoolToVisibilityConverter}}"
+                                   >
+                <Fluent:Button Name="LaunchSqlProfiler"
+                                   Header="SQL Profiler"
+                                   cal:Message.Attach="[Event Click] = [Action LaunchSqlProfiler()]"
+                                   LargeIcon="{StaticResource LaunchProfilerIconLarger}"
                                    Margin="4,0"
                                    SizeDefinition="Large,Large,Small"
                                    >
                     <Fluent:Button.ToolTip>
-                        <Fluent:ScreenTip Title="Export Analysis Data"
-                                              Text="Exports information to allow for detailed analysis of the model design"
-                                              DisableReason="{Binding ClearCacheDisableReason}"
-                                              ></Fluent:ScreenTip>
+                        <Fluent:ScreenTip Title="SQL Profiler"
+                                   Text="Launches the SQL Profiler utility connected to the current data source."
+                                   DisableReason="Not able to find SQL Profiler on your PC"
+                                   ></Fluent:ScreenTip>
+                    </Fluent:Button.ToolTip>
+                </Fluent:Button>
+                <Fluent:Button Name="LaunchExcel"
+                                   Header="Excel"
+                                   cal:Message.Attach="[Event Click] = [Action LaunchExcel()]"
+                                   
+                                   LargeIcon="{StaticResource LaunchExcelIconLarger}"
+                                   Margin="4,0"
+                                   SizeDefinition="Large,Large,Small"
+                                   >
+                    <Fluent:Button.ToolTip>
+                        <Fluent:ScreenTip Title="Excel"
+                                   Text="Launches Excel and creates a Pivot Table connected to the current data source."
+                                   ></Fluent:ScreenTip>
                     </Fluent:Button.ToolTip>
                 </Fluent:Button>
             </Fluent:RibbonGroupBox>
-        </Fluent:RibbonTabItem>    
+        </Fluent:RibbonTabItem>
+
+
+        <!-- DEBUG Ribbon -->
+
+        <Fluent:RibbonTabItem Header="Debug" Visibility="{Binding IsDebugBuild, Converter={StaticResource BoolToVisibilityConverter}}">
             
+            <Fluent:RibbonGroupBox Header="Window Layout">
+                    <Fluent:Button Name="SaveLayout"
+                               Header="Save Layout"
+                               cal:Message.Attach="[Event Click] = [Action SaveLayout()]"
+                                   Icon="{StaticResource LayoutSaveIcon}"
+                                   LargeIcon="{StaticResource LayoutSaveIcon}"
+                                   Margin="4,0"
+                                   SizeDefinition="Middle,Small,Small"></Fluent:Button>
+
+                <Fluent:Button Name="LoadLayout"
+                               Header="Load Layout"
+                               cal:Message.Attach="[Event Click] = [Action LoadLayout()]"
+                                   Icon="{StaticResource LayoutLoadIcon}"
+                                   LargeIcon="{StaticResource LayoutLoadIcon}"
+                                   Margin="4,0"
+                                   SizeDefinition="Middle,Small,Small"></Fluent:Button>
+
+                <Fluent:Button Name="ResetLayout"
+                               Header="Reset Layout"
+                               cal:Message.Attach="[Event Click] = [Action ResetLayout()]"
+                                   Icon="{StaticResource LayoutResetIcon}"
+                                   LargeIcon="{StaticResource LayoutResetIcon}"
+                                   Margin="4,0"
+                                   SizeDefinition="Middle,Small,Small"></Fluent:Button>
+                <Fluent:ComboBox Header="Theme" 
+                                 SelectedValue="{Binding Theme}" 
+                                 SelectedValuePath="Text" 
+                                 DisplayMemberPath="Text"
+                                 IsEditable="False">
+                    <TextBlock Text="Light" />
+                    <TextBlock Text="Dark" />
+                </Fluent:ComboBox>
+            </Fluent:RibbonGroupBox>
+            
+        </Fluent:RibbonTabItem>    
+          
             
         <!-- Help Tab -->
         <Fluent:RibbonTabItem Header="Help">
@@ -819,7 +971,7 @@
         </Fluent:RibbonTabItem>
 
         <!-- Quick Access Targets -->
-        <Fluent:RibbonTabItem Visibility="Collapsed">
+        <!--<Fluent:RibbonTabItem Visibility="Collapsed">
             <Fluent:RibbonGroupBox x:Name="QuickAccessHiddenCommands">
             <Fluent:Button Header="New" 
                                    x:Name="NewQueryQat" 
@@ -837,7 +989,7 @@
 
             </Fluent:Button>
             </Fluent:RibbonGroupBox>
-        </Fluent:RibbonTabItem>
+        </Fluent:RibbonTabItem>-->
     </Fluent:Ribbon>
 
 </UserControl>

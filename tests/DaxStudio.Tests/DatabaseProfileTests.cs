@@ -1,10 +1,5 @@
 ﻿using ADOTabular.DatabaseProfile;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.IO;
 using DaxStudio.UI.Utils;
@@ -19,10 +14,10 @@ namespace DaxStudio.Tests
         [TestInitialize]
         public void Setup()
         {
-            ConnectionString = @"Data Source=localhost\tab16;Initial Catalog=AdventureWorks2012";
+            ConnectionString = @"Data Source=localhost\tab17;Initial Catalog=Adventure Works";
         }
 
-        [TestMethod]
+        [TestMethod, TestCategory("DatabaseProfiler")]
         public void TestAdventureWorksProfile()
         {
             
@@ -32,13 +27,13 @@ namespace DaxStudio.Tests
             var profile = DatabaseProfiler.Create(db);
 
             Assert.AreEqual(db.Name, profile.Name);
-            Assert.AreEqual(17, profile.Tables.Count);
+            Assert.AreEqual(7, profile.Tables.Count);
 
             JsonSerializer serializer = new JsonSerializer();
             //serializer.Converters.Add(new JavaScriptDateTimeConverter());
             serializer.NullValueHandling = NullValueHandling.Ignore;
 
-            using (StreamWriter sw = new StreamWriter(@"d:\temp\profile.json"))
+            using (StreamWriter sw = new StreamWriter(@"c:\temp\profile.json"))
             using (JsonWriter writer = new JsonTextWriter(sw))
             {
                 serializer.Serialize(writer, profile);
@@ -48,7 +43,7 @@ namespace DaxStudio.Tests
             cnn.Close();
         }
 
-        [TestMethod, Ignore]
+        [TestMethod, TestCategory("DatabaseProfiler"), Ignore]
         public void TestVertipaqAnalyzerProfile()
         {
             //var cnnStr = ConnectionString;

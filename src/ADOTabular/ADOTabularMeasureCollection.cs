@@ -9,8 +9,8 @@ namespace ADOTabular
     public class ADOTabularMeasureCollection: IEnumerable<ADOTabularMeasure>
     {
         private readonly ADOTabularTable _table;
-        private readonly ADOTabularConnection _adoTabConn;
-        public ADOTabularMeasureCollection(ADOTabularConnection adoTabConn, ADOTabularTable table)
+        private readonly IADOTabularConnection _adoTabConn;
+        public ADOTabularMeasureCollection(IADOTabularConnection adoTabConn, ADOTabularTable table)
         {
             _table = table;
             _adoTabConn = adoTabConn;
@@ -75,8 +75,8 @@ namespace ADOTabular
                 // rownumber cannot be referenced in queries so we exclude it from the collection
                 if (adoTabularColumn.Contents == "RowNumber") continue;
                 // the KPI components are available through the parent KPI object
-                if (adoTabularColumn.ColumnType == ADOTabularColumnType.KPIGoal) continue;
-                if (adoTabularColumn.ColumnType == ADOTabularColumnType.KPIStatus) continue;
+                if (adoTabularColumn.ObjectType == ADOTabularObjectType.KPIGoal) continue;
+                if (adoTabularColumn.ObjectType == ADOTabularObjectType.KPIStatus) continue;
 
                 yield return adoTabularColumn;
             }

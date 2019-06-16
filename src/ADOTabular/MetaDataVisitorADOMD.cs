@@ -47,7 +47,9 @@ namespace ADOTabular
                         ,dr["DIMENSION_CAPTION"].ToString()
                         ,dr["DESCRIPTION"].ToString()
                         ,bool.Parse(dr["DIMENSION_IS_VISIBLE"].ToString())
-                    )
+                        , false // Private
+                        , false // ShowAsVariationsOnly
+                        )
                 );
             }
             
@@ -73,7 +75,7 @@ namespace ADOTabular
                         , dr["HIERARCHY_CAPTION"].ToString()
                         ,dr["DESCRIPTION"].ToString()
                         ,bool.Parse(dr["HIERARCHY_IS_VISIBLE"].ToString())
-                        ,ADOTabularColumnType.Column
+                        ,ADOTabularObjectType.Column
                         ,"")
                         );
             }
@@ -98,7 +100,7 @@ namespace ADOTabular
                         , dr["MEASURE_CAPTION"].ToString()
                         ,dr["DESCRIPTION"].ToString()
                         ,bool.Parse(dr["MEASURE_IS_VISIBLE"].ToString())
-                        ,ADOTabularColumnType.Measure
+                        ,ADOTabularObjectType.Measure
                         ,"")
                         );
             }
@@ -114,7 +116,7 @@ namespace ADOTabular
             return ret;
         }
 
-        internal static SortedDictionary<string, ADOTabularMeasure> VisitMeasures(ADOTabularMeasureCollection measures, ADOTabularConnection conn)
+        internal static SortedDictionary<string, ADOTabularMeasure> VisitMeasures(ADOTabularMeasureCollection measures, IADOTabularConnection conn)
         {
             var ret = new SortedDictionary<string, ADOTabularMeasure>();
 

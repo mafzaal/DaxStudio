@@ -66,9 +66,15 @@ namespace DAXEditor
         private bool syntaxErrorDisplayed;
         private IHighlighter documentHighlighter;
 
+        static DAXEditor()
+        {
+            DefaultStyleKeyProperty.OverrideMetadata(typeof(DAXEditor), new FrameworkPropertyMetadata(typeof(DAXEditor)));
+        }
+
         public DAXEditor() 
         {
-            
+            //DefaultStyleKeyProperty.OverrideMetadata(typeof(DAXEditor), new FrameworkPropertyMetadata(typeof(DAXEditor)));
+
             //SearchPanel.Install(this.TextArea);
             var brush = (SolidColorBrush)(new BrushConverter().ConvertFrom("#C8FFA55F")); //orange // grey FFE6E6E6
             HighlightBackgroundBrush = brush;
@@ -97,7 +103,16 @@ namespace DAXEditor
             IntellisenseProvider = new IntellisenseProviderStub();
 
             this.DocumentChanged += DaxEditor_DocumentChanged;
+            DataObject.AddPastingHandler(this, OnDataObjectPasting);
             
+        }
+
+        public EventHandler<DataObjectPastingEventArgs> OnPasting;
+
+        // Raise Custom OnPasting event
+        private void OnDataObjectPasting(object sender, DataObjectPastingEventArgs e)
+        {
+            OnPasting?.Invoke(sender, e);
         }
 
         internal void UpdateSyntaxRule(string colourName,  IEnumerable<string> wordList)
@@ -130,6 +145,51 @@ namespace DAXEditor
             UpdateSyntaxRule("Kword", keywords);
         }
 
+        public void ChangeColorBrightness(double factor)
+        {
+            foreach (var syntaxHighlight in SyntaxHighlighting.NamedHighlightingColors)
+            {
+                var foreground = syntaxHighlight.Foreground.GetColor(null);
+                if (foreground == null) return;
+                HSLColor hsl = new HSLColor((System.Windows.Media.Color)foreground);
+                hsl.Luminosity = hsl.Luminosity * factor;
+                syntaxHighlight.Foreground = new SimpleHighlightingBrush((Color)hsl);
+            }
+
+            //var funcCol = SyntaxHighlighting.NamedHighlightingColors.FirstOrDefault(c => c.Name == "Function");
+            //var hex = "Blue";
+            //System.Windows.Media.Color _color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(hex);
+            //HSLColor hsl = new HSLColor(_color);
+            //hsl.Luminosity = hsl.Luminosity * factor;
+            //funcCol.Foreground = new SimpleHighlightingBrush((Color)hsl);
+        }
+
+        public void SetSyntaxHighlightColorTheme(string theme)
+        {
+            var prefix = theme + ".";
+            foreach (var syntaxHighlight in SyntaxHighlighting.NamedHighlightingColors)
+            {
+                if (syntaxHighlight.Name.StartsWith(prefix))
+                {
+                    var suffix = syntaxHighlight.Name.Replace(prefix, "");
+                    var baseColor = SyntaxHighlighting.NamedHighlightingColors.FirstOrDefault(color => color.Name == suffix);
+                    if (baseColor != null)
+                    {
+                        baseColor.Foreground = syntaxHighlight.Foreground;
+                        
+                    }
+                }
+            }
+
+            //var funcCol = SyntaxHighlighting.NamedHighlightingColors.FirstOrDefault(c => c.Name == "Function");
+            //var hex = "Blue";
+            //System.Windows.Media.Color _color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(hex);
+            //HSLColor hsl = new HSLColor(_color);
+            //hsl.Luminosity = hsl.Luminosity * factor;
+            //funcCol.Foreground = new SimpleHighlightingBrush((Color)hsl);
+
+
+        }
 
         private void DaxEditor_DocumentChanged(object sender, EventArgs e)
         {
@@ -185,7 +245,7 @@ namespace DAXEditor
                 }
             }
          
-            //TODO - hardcoded for v1 - should be moved to a settings dialog
+            // default settings - can be overridden in the settings dialog
             this.FontFamily = new System.Windows.Media.FontFamily("Lucida Console");
             this.DefaultFontSize = 11.0;
             this.FontSize = DefaultFontSize;
@@ -336,8 +396,8 @@ namespace DAXEditor
 
         private Regex rxUncommentSlashes = new Regex(string.Format("^(\\s*){0}",COMMENT_DELIM_SLASH), RegexOptions.Compiled | RegexOptions.Multiline);
         private Regex rxUncommentDashes = new Regex(string.Format("^(\\s*){0}", COMMENT_DELIM_DASH), RegexOptions.Compiled | RegexOptions.Multiline);
-        private Regex rxComment = new Regex("^(\\s*)", RegexOptions.Compiled | RegexOptions.Multiline);
-
+        private Regex rxComment = new Regex("^(.*)", RegexOptions.Compiled | RegexOptions.Multiline);
+        //private Regex rxComment = new Regex("^(\\s*)", RegexOptions.Compiled | RegexOptions.Multiline);
         private void SelectFullLines()
         {
             int selStart = Document.GetLineByOffset(SelectionStart).Offset;
@@ -473,7 +533,11 @@ namespace DAXEditor
         }
         public void DisposeCompletionWindow()
         {
+            if (toolTip != null)
+                toolTip.IsOpen = false;
+            completionWindow?.Close();
             completionWindow = null;
+            System.Diagnostics.Debug.WriteLine(">>> DisposeCompletionWindow");
         }
 
         public void DisableIntellisense()

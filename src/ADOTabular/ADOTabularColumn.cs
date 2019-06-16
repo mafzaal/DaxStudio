@@ -9,29 +9,29 @@ namespace ADOTabular
 
     public  class ADOTabularColumn:IADOTabularColumn
     {
-
-        public ADOTabularColumn(ADOTabularTable table, DataRow dr, ADOTabularColumnType colType)
-        {
-            Table = table; 
-            ColumnType = colType;
-            if (colType == ADOTabularColumnType.Column)
-            {
-                Caption = dr["HIERARCHY_CAPTION"].ToString();
-                Name = dr["HIERARCHY_NAME"].ToString();
-                IsVisible = bool.Parse(dr["HIERARCHY_IS_VISIBLE"].ToString());
-                Description = dr["DESCRIPTION"].ToString();
-            }
-            else
-            {
-                Caption = dr["MEASURE_CAPTION"].ToString();
-                Name = dr["MEASURE_NAME"].ToString();
-                IsVisible = bool.Parse(dr["MEASURE_IS_VISIBLE"].ToString());
-                Description = dr["DESCRIPTION"].ToString();
-            }
-        }
+        // TODO - can we delete this??
+        //public ADOTabularColumn(ADOTabularTable table, DataRow dr, ADOTabularObjectType colType)
+        //{
+        //    Table = table;
+        //    ObjectType = colType;
+        //    if (colType == ADOTabularObjectType.Column)
+        //    {
+        //        Caption = dr["HIERARCHY_CAPTION"].ToString();
+        //        Name = dr["HIERARCHY_NAME"].ToString();
+        //        IsVisible = bool.Parse(dr["HIERARCHY_IS_VISIBLE"].ToString());
+        //        Description = dr["DESCRIPTION"].ToString();
+        //    }
+        //    else
+        //    {
+        //        Caption = dr["MEASURE_CAPTION"].ToString();
+        //        Name = dr["MEASURE_NAME"].ToString();
+        //        IsVisible = bool.Parse(dr["MEASURE_IS_VISIBLE"].ToString());
+        //        Description = dr["DESCRIPTION"].ToString();
+        //    }
+        //}
 
         public ADOTabularColumn( ADOTabularTable table, string internalReference, string name, string caption,  string description,
-                                bool isVisible, ADOTabularColumnType columnType, string contents)
+                                bool isVisible, ADOTabularObjectType columnType, string contents)
         {
             Table = table;
             InternalReference = internalReference;
@@ -39,26 +39,27 @@ namespace ADOTabular
             Caption = caption ?? internalReference ?? name;
             Description = description;
             IsVisible = isVisible;
-            ColumnType = columnType;
+            ObjectType = columnType;
             Contents = contents;
+            Role = $"{Table.InternalReference}_{InternalReference}";
+            Variations = new List<ADOTabularVariation>();
         }
 
         public string InternalReference { get; private set; }
 
-        public ADOTabularColumnType ColumnType { get; internal set; }
+        public ADOTabularObjectType ObjectType { get; internal set; }
 
         public ADOTabularTable Table { get; private set; }
 
         public string Caption { get; private set; }
         public string Name { get; private set; }
-
         public string Contents { get; private set; }
 
         public virtual string DaxName {
             get
             {
                 // for measures we exclude the table name
-                return ColumnType == ADOTabularColumnType.Column  
+                return ObjectType == ADOTabularObjectType.Column  
                     ? string.Format("{0}[{1}]", Table.DaxName, Name)
                     : string.Format("[{0}]",Name);
             }
@@ -72,6 +73,8 @@ namespace ADOTabular
         public string Description { get; set; }
 
         public bool IsVisible { get; private set; }
+
+        public bool IsInDisplayFolder { get; set; }
  
         public Type DataType { get; set; }
 
@@ -94,7 +97,8 @@ namespace ADOTabular
                     return null;
                 }
 
-                // Return the measure expression from the table measures dictionary (the measures are loaded and cached on the use of the Table.Measures property)
+                // Return the measure expression from the table measures dictionary 
+                // (the measures are loaded and cached on the use of the Table.Measures property)
 
                 var measure = this.Table.Measures.SingleOrDefault(s => s.Name.Equals(this.Name, StringComparison.OrdinalIgnoreCase));                
 
@@ -106,20 +110,20 @@ namespace ADOTabular
         {
             get
             {
-                switch (ColumnType)
+                switch (ObjectType)
                 {
-                    case ADOTabularColumnType.Column:
+                    case ADOTabularObjectType.Column:
                         return IsVisible ? MetadataImages.Column : MetadataImages.HiddenColumn;
-                    case ADOTabularColumnType.Hierarchy:
+                    case ADOTabularObjectType.Hierarchy:
                         return MetadataImages.Hierarchy;
-                    case ADOTabularColumnType.KPI:
+                    case ADOTabularObjectType.KPI:
                         return MetadataImages.Kpi;
-                    case ADOTabularColumnType.Level:
+                    case ADOTabularObjectType.Level:
                         return MetadataImages.Column;
-                    case ADOTabularColumnType.KPIGoal:
-                    case ADOTabularColumnType.KPIStatus:
+                    case ADOTabularObjectType.KPIGoal:
+                    case ADOTabularObjectType.KPIStatus:
                         return MetadataImages.Measure;
-                    case ADOTabularColumnType.UnnaturalHierarchy:
+                    case ADOTabularObjectType.UnnaturalHierarchy:
                         return MetadataImages.UnnaturalHierarchy;
                     default:
                         return IsVisible ? MetadataImages.Measure : MetadataImages.HiddenMeasure;
@@ -179,5 +183,9 @@ namespace ADOTabular
             }
             return _tmp.Distinct().Take(sampleSize).ToList();
         }
+
+        // used for relationship links
+        public string Role { get; internal set; }
+        public List<ADOTabularVariation> Variations { get; internal set; }
     }
 }

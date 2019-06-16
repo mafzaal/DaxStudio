@@ -6,9 +6,8 @@ using System.Reflection;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("DaxStudio.org")]
 [assembly: AssemblyProduct("DAX Studio")]
-[assembly: AssemblyCopyright("Copyright © DAX Studio 2016")] 
+[assembly: AssemblyCopyright("Copyright Â© DAX Studio 2016")] 
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: AssemblyVersion(    "2.7.4.102")]
-[assembly: AssemblyFileVersion("2.7.4.102")]
+
 

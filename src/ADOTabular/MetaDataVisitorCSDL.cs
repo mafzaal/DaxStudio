@@ -6,15 +6,17 @@ using System.Xml;
 using ADOTabular.AdomdClientWrappers;
 using System.Linq;
 using System.Xml.Linq;
+using System.Diagnostics;
+using ADOTabular.Utils;
 
 namespace ADOTabular
 {
     public class MetaDataVisitorCSDL : IMetaDataVisitor
     {
-        private readonly ADOTabularConnection _conn;
+        private readonly IADOTabularConnection _conn;
         private Dictionary<string, Dictionary<string, string>> _hierStructure;
 
-        public MetaDataVisitorCSDL(ADOTabularConnection conn)
+        public MetaDataVisitorCSDL(IADOTabularConnection conn)
         {
             _conn = conn;
         }
@@ -23,6 +25,7 @@ namespace ADOTabular
         {
             var ret = new SortedDictionary<string, ADOTabularModel>();
             var resColl = new AdomdRestrictionCollection { { "CUBE_SOURCE", 1 } };
+            
             var dtModels = _conn.GetSchemaDataSet("MDSCHEMA_CUBES", resColl).Tables[0];
             foreach (DataRow dr in dtModels.Rows)
             {
@@ -95,23 +98,37 @@ namespace ADOTabular
             {
                 var eEntitySet = rdr.NameTable.Add("EntitySet");
                 var eEntityType = rdr.NameTable.Add("EntityType");
-
+                var eAssociationSet = rdr.NameTable.Add("AssociationSet");
+                //var eDisplayFolder = rdr.NameTable.Add("DisplayFolder");
                 //var eKpi = rdr.NameTable.Add("Kpi");
 
                 while (rdr.Read())
                 {
-                    if (rdr.NodeType == XmlNodeType.Element
-                        && rdr.LocalName == eEntitySet)
+                    if (rdr.NodeType == XmlNodeType.Element)
                     {
-                        var tab = BuildTableFromEntitySet(rdr, eEntitySet);
-                        tabs.Add(tab);
+                        switch (rdr.LocalName)
+                        {
+
+                            case "EntitySet":
+                                var tab = BuildTableFromEntitySet(rdr, eEntitySet);
+                                tabs.Add(tab);
+                                break;
+                            case "EntityType":
+                                AddColumnsToTable(rdr, tabs, eEntityType);
+                                break;
+                            case "AssociationSet":
+                                BuildRelationshipFromAssociationSet(rdr, tabs, eAssociationSet);
+                                break;
+                            case "Association":
+                                UpdateRelationshipFromAssociation(rdr, tabs);
+                                break;
+                        }
+
                     }
-                    if (rdr.NodeType == XmlNodeType.Element
-                        && rdr.LocalName == eEntityType)
-                    {
-                        AddColumnsToTable(rdr, tabs, eEntityType);
-                    }
+
                 }
+
+                // post processing of metadata
                 foreach (var t in tabs)
                 {
                     TagKpiComponentColumns(t);
@@ -120,6 +137,150 @@ namespace ADOTabular
 
         }
 
+        private void UpdateRelationshipFromAssociation(XmlReader rdr, ADOTabularTableCollection tabs)
+        {
+            string refname = string.Empty;
+            string toColumnRef = string.Empty;
+            string fromColumnRef = string.Empty;
+            string toColumnMultiplicity = string.Empty;
+            string fromColumnMultiplicity = string.Empty;
+
+            while (rdr.MoveToNextAttribute())
+            {
+                switch (rdr.LocalName)
+                {
+                    case "Name":
+                        refname = rdr.Value;
+                        break;
+                }
+            }
+
+            while (!(rdr.NodeType == XmlNodeType.EndElement
+                     && rdr.LocalName == "Association"))
+            {
+                // todo read entitySet as From/To table
+                if (rdr.LocalName == "End")
+                {
+                    (fromColumnRef, fromColumnMultiplicity) = GetRelationshipColumnRef(rdr);
+                    (toColumnRef, toColumnMultiplicity) = GetRelationshipColumnRef(rdr);
+                }
+                if (rdr.NodeType == XmlNodeType.EndElement
+                    && rdr.LocalName == "Association") break;
+                
+                rdr.Read();
+            }
+
+            // Find relationship and update it
+            foreach (var tab in tabs)
+            {
+                foreach (var rel in tab.Relationships)
+                {
+                    if (rel.InternalName == refname)
+                    {
+                        rel.ToColumn = toColumnRef;
+                        rel.ToColumnMultiplicity = toColumnMultiplicity;
+                        rel.FromColumn = fromColumnRef;
+                        rel.FromColumnMultiplicity = fromColumnMultiplicity;
+                        return;
+                    }
+                }
+            }
+
+        }
+
+        private void BuildRelationshipFromAssociationSet(XmlReader rdr, ADOTabularTableCollection tabs, string eAssociationSet)
+        {
+            string refname = string.Empty;
+            string fromTableRef = "";
+            string toTableRef = "";
+            string crossFilterDir = "";
+
+            while (rdr.MoveToNextAttribute())
+            {
+                switch (rdr.LocalName)
+                {
+                    case "Name":
+                        refname = rdr.Value;
+                        break;
+                }
+            }
+
+            while (!(rdr.NodeType == XmlNodeType.EndElement
+                     && rdr.LocalName == eAssociationSet))
+            {
+                // todo read entitySet as From/To table
+                if (rdr.LocalName == "End")
+                {
+                    fromTableRef = GetRelationshipTableRef(rdr);
+                    toTableRef = GetRelationshipTableRef(rdr);
+                }
+                if (rdr.LocalName == "AssociationSet" && rdr.NamespaceURI == @"http://schemas.microsoft.com/sqlbi/2010/10/edm/extensions")
+                {
+                    //rdr.MoveToFirstAttribute();
+                    if (rdr.MoveToAttribute("CrossFilterDirection"))
+                    {
+                        crossFilterDir = rdr.Value;
+                    }
+                }
+                rdr.Read();
+            }
+
+            var fromTable = tabs.GetById(fromTableRef);
+            fromTable.Relationships.Add(new ADOTabularRelationship() {
+                FromTable = fromTableRef,
+                ToTable = toTableRef,
+                InternalName = refname,
+                CrossFilterDirection = crossFilterDir
+            });
+
+        }
+
+        private string GetRelationshipTableRef(XmlReader rdr)
+        {
+            string entitySet = "";
+
+            while (!(rdr.NodeType == XmlNodeType.EndElement
+                     && rdr.LocalName == "End"))
+            {
+                while (rdr.MoveToNextAttribute())
+                {
+                    if (rdr.LocalName == "EntitySet")
+                    {
+                        entitySet = rdr.Value;
+                        rdr.Skip(); // jump to the end of the current Element
+                        rdr.MoveToContent(); // move past any whitespace to the next Element
+                        return entitySet;
+                    }
+                }
+                rdr.Read();
+            }
+            return "";
+        }
+
+        private Tuple<string,string> GetRelationshipColumnRef(XmlReader rdr)
+        {
+            string role = string.Empty;
+            string multiplicity = string.Empty;
+
+            while (!(rdr.NodeType == XmlNodeType.EndElement
+                     && rdr.LocalName == "End"))
+            {
+                if (rdr.MoveToAttribute("Role"))
+                {
+                    role = rdr.Value;
+                }
+
+                if (rdr.MoveToAttribute("Multiplicity"))
+                {
+                    multiplicity = rdr.Value;
+                }
+
+                rdr.Skip();
+                rdr.MoveToContent();
+                return Tuple.Create(role, multiplicity);
+            }
+            return Tuple.Create( "","");
+        }
 
 
         private ADOTabularTable BuildTableFromEntitySet(XmlReader rdr, string eEntitySet)
@@ -129,6 +290,9 @@ namespace ADOTabular
             string refname = null;
             bool isVisible = true;
             string name = null;
+            bool _private = false;
+            bool showAsVariationsOnly = false;
+
             while (!(rdr.NodeType == XmlNodeType.EndElement
                      && rdr.LocalName == eEntitySet))
             {
@@ -151,7 +315,17 @@ namespace ADOTabular
                         case "Name":
                             refname = rdr.Value;
                             break;
+                        case "Private":
+                            _private = bool.Parse(rdr.Value);
+                            break;
+                        case "ShowAsVariationsOnly":
+                            showAsVariationsOnly = bool.Parse(rdr.Value);
+                            break;
                     }
+                }
+                if (rdr.LocalName == "Summary")
+                {
+                    description = (string)rdr.ReadElementContentAs(typeof(string),null);
                 }
                 rdr.Read();
             }
@@ -164,7 +338,7 @@ namespace ADOTabular
             //                - if this is missing the Name property is used
             // Caption        - this is what the end user sees (may be translated)
             //                - if this is missing the Name property is used
-            var tab = new ADOTabularTable(_conn, refname, name, caption, description, isVisible);
+            var tab = new ADOTabularTable(_conn, refname, name, caption, description, isVisible, _private, showAsVariationsOnly);
 
             return tab;
         }
@@ -175,15 +349,15 @@ namespace ADOTabular
 
             foreach (var c in tab.Columns)
             {
-                if (c.ColumnType == ADOTabularColumnType.KPI)
+                if (c.ObjectType == ADOTabularObjectType.KPI)
                 {
                     var k = (ADOTabularKpi)c;
                     if (k.Goal == null && k.Status == null)
                         invalidKpis.Add(c);
                     if (k.Goal != null)
-                        k.Goal.ColumnType = ADOTabularColumnType.KPIGoal;
+                        k.Goal.ObjectType = ADOTabularObjectType.KPIGoal;
                     if (k.Status != null)
-                        k.Status.ColumnType = ADOTabularColumnType.KPIStatus;
+                        k.Status.ObjectType = ADOTabularObjectType.KPIStatus;
                 }
             }
             foreach (var invalidKpi in invalidKpis)
@@ -225,10 +399,11 @@ namespace ADOTabular
             long stringValueMaxLength = 0;
             long distinctValueCount = 0;
             bool nullable = true;
+            List<ADOTabularVariation> _variations = new List<ADOTabularVariation>();
 
             KpiDetails kpi = new KpiDetails();
 
-            var colType = ADOTabularColumnType.Column;
+            var colType = ADOTabularObjectType.Column;
             while (!(rdr.NodeType == XmlNodeType.EndElement
                      && rdr.LocalName == eEntityType))
             {
@@ -253,6 +428,13 @@ namespace ADOTabular
 
                 }
 
+                if (rdr.NodeType == XmlNodeType.Element
+                    && rdr.LocalName == "DisplayFolder")
+                {
+                    Debug.WriteLine("FoundFolder");
+                    var tbl = tables.GetById(tableId);
+                    ProcessDisplayFolder(rdr,tbl,tbl);
+                }
 
                 if (rdr.NodeType == XmlNodeType.Element
                     && rdr.LocalName == "Kpi")
@@ -270,7 +452,7 @@ namespace ADOTabular
                 {
 
                     if (rdr.LocalName == eMeasure)
-                        colType = ADOTabularColumnType.Measure;
+                        colType = ADOTabularObjectType.Measure;
 
                     if (rdr.LocalName == eSummary)
                         description = rdr.ReadElementContentAsString();
@@ -316,12 +498,16 @@ namespace ADOTabular
                                 nullable = bool.Parse(rdr.Value);
                                 break;
                                 // Precision Scale 
-
+                            //TODO - Add RowCount
                         }
                     }
 
                 }
 
+                if (rdr.NodeType == XmlNodeType.Element
+                    && rdr.LocalName == "Variations") {
+                    _variations = ProcessVariations(rdr);
+                }
 
 
                 if (rdr.NodeType == XmlNodeType.EndElement
@@ -344,12 +530,14 @@ namespace ADOTabular
                             col.DistinctValues = distinctValueCount;
                             col.FormatString = formatString;
                             col.StringValueMaxLength = stringValueMaxLength;
+                            col.Variations.AddRange(_variations);
+                            tables.Model.AddRole(col);
                             tab.Columns.Add(col);
                             _conn.Columns.Add(col.OutputColumnName, col);
                         }
                         else
                         {
-                            colType = ADOTabularColumnType.KPI;
+                            colType = ADOTabularObjectType.KPI;
                             var kpiCol = new ADOTabularKpi(tab, refName, name, caption, description, isVisible, colType, contents, kpi);
                             kpiCol.DataType = Type.GetType(string.Format("System.{0}", dataType));
                             tab.Columns.Add(kpiCol);
@@ -371,7 +559,8 @@ namespace ADOTabular
                     formatString = "";
                     defaultAggregateFunction = "";
                     nullable = true;
-                    colType = ADOTabularColumnType.Column;
+                    colType = ADOTabularObjectType.Column;
+                    _variations = new List<ADOTabularVariation>();
                 }
                 rdr.Read();
             }
@@ -380,6 +569,146 @@ namespace ADOTabular
 
         }
 
+        private List<ADOTabularVariation> ProcessVariations(XmlReader rdr)
+        {
+            string _name = string.Empty;
+            bool _default = false;
+            string navigationPropertyRef = string.Empty;
+            string defaultHierarchyRef = string.Empty;
+
+            List<ADOTabularVariation> _variations = new List<ADOTabularVariation>();
+            while (!(rdr.NodeType == XmlNodeType.EndElement 
+                && rdr.LocalName == "Variations")) {
+
+                if (rdr.NodeType == XmlNodeType.Element 
+                    && rdr.LocalName == "Variation")
+                {
+                    while (rdr.MoveToNextAttribute())
+                    {
+                        switch (rdr.LocalName)
+                        {
+                            case "Name":
+                                _name = rdr.Value;
+                                break;
+                            case "Default":
+                                _default = bool.Parse( rdr.Value);
+                                break;
+                        }
+                    }
+
+                }
+
+                if(rdr.NodeType == XmlNodeType.Element
+                    && rdr.LocalName == "NavigationPropertyRef")
+                {
+                    while (rdr.MoveToNextAttribute())
+                    {
+                        if (rdr.LocalName == "Name") navigationPropertyRef = rdr.Value;
+                    }        
+                }
+
+                if (rdr.NodeType == XmlNodeType.Element
+                    && rdr.LocalName == "DefaultHierarchyRef")
+                {
+                    while (rdr.MoveToNextAttribute())
+                    {
+                        if (rdr.LocalName == "Name") defaultHierarchyRef = rdr.Value;
+                    }
+                }
+
+
+                if (rdr.NodeType == XmlNodeType.EndElement
+                    && rdr.LocalName == "Variation")
+                {
+                    _variations.Add(new ADOTabularVariation() { NavigationPropertyRef = navigationPropertyRef, DefaultHierarchyRef = defaultHierarchyRef, IsDefault = _default });
+                    _default = false;
+                    navigationPropertyRef = string.Empty;
+                    defaultHierarchyRef = string.Empty;
+                }
+                rdr.Read();
+            }
+            return _variations;
+        }
+
+        private void ProcessDisplayFolder(XmlReader rdr, ADOTabularTable table, IADOTabularFolderReference parent)
+        {
+            var folderReference = "";
+            string folderCaption = null;
+            string objRef = "";
+
+            while (!(rdr.NodeType == XmlNodeType.EndElement
+                    && rdr.LocalName == "DisplayFolder"))
+            {
+
+               
+
+                if (rdr.NodeType == XmlNodeType.Element
+                    && rdr.LocalName == "DisplayFolder")
+                {
+                    while (rdr.MoveToNextAttribute())
+                    {
+                        switch (rdr.LocalName)
+                        {
+                          
+                            case "Name":
+                                folderReference = rdr.Value;
+                                break;
+                            case "Caption":
+                                folderCaption = rdr.Value;
+                                break;
+                        }
+                    }
+                    // create folder and add to parent's folders
+                    IADOTabularFolderReference folder = new ADOTabularDisplayFolder(folderCaption, folderReference);
+                    parent.FolderItems.Add(folder);
+
+                    rdr.ReadToNextElement();
+
+                    // recurse down to child items
+                    ProcessDisplayFolder(rdr, table, folder);
+                    rdr.Read();
+                    //rdr.ReadToNextElement(); // read the end element
+                }
+                    
+                if ((rdr.NodeType == XmlNodeType.Element)
+                    && (rdr.LocalName == "PropertyRef"))
+                {
+                    while (rdr.MoveToNextAttribute())
+                    {
+                        switch (rdr.LocalName)
+                        {
+                            case "Name":
+                                objRef = rdr.Value;
+                                break;
+                        }
+                    }
+
+                    // create reference object
+                    IADOTabularObjectReference reference = new ADOTabularObjectReference("", objRef);
+                    parent.FolderItems.Add(reference);
+                    var column = table.Columns.GetByPropertyRef(objRef);
+                    if (column != null) { column.IsInDisplayFolder = true; }
+                    objRef = "";
+
+                    rdr.Read();
+                }
+
+                if ((rdr.NodeType != XmlNodeType.Element && rdr.NodeType != XmlNodeType.EndElement) && (rdr.LocalName != "DisplayFolder" && rdr.LocalName != "PropertyRef" && rdr.LocalName != "DisplaFolders"))
+                {
+                    rdr.ReadToNextElement();
+                }
+
+                if (rdr.NodeType == XmlNodeType.EndElement && rdr.LocalName == "DisplayFolders")
+                {
+                    rdr.Read();
+                    break;
+                }
+
+                //rdr.Read();
+
+            }
+
+        }
 
         private KpiDetails ProcessKpi(XmlReader rdr, ADOTabularTable table)
         {
@@ -475,7 +804,7 @@ namespace ADOTabular
                         }
                     }
                     string structure = GetHierarchStructure(table, hierName, hierCap);
-                    hier = new ADOTabularHierarchy(table, hierName, hierName, hierCap ?? hierName, "", hierHidden, ADOTabularColumnType.Hierarchy, "", structure);
+                    hier = new ADOTabularHierarchy(table, hierName, hierName, hierCap ?? hierName, "", hierHidden, ADOTabularObjectType.Hierarchy, "", structure);
                     table.Columns.Add(hier);
                     rdr.Read();
                 }
@@ -709,7 +1038,10 @@ namespace ADOTabular
             }
             else {
                 product.Type = "SSAS Tabular";
-                if (ssasVersion.StartsWith("14.")) {
+                if (ssasVersion.StartsWith("15.")) {
+                    product.Name = "SSAS 2019";
+                }
+                else if (ssasVersion.StartsWith("14.")) {
                     product.Name = "SSAS 2017";
                 }
                 else if (ssasVersion.StartsWith("13.")) {
@@ -721,6 +1053,9 @@ namespace ADOTabular
                 else if (ssasVersion.StartsWith("11.")) {
                     product.Name = "SSAS 2012";
                 }
+                else if (ssasVersion.StartsWith("10.")) {
+                    product.Name = "SSAS 2012";
+                }
                 else {
                     product.Name = product.Type;
                 }
@@ -730,7 +1065,9 @@ namespace ADOTabular
 
         public SortedDictionary<string, ADOTabularMeasure> Visit(ADOTabularMeasureCollection measures)
         {
-            //RRomano: Better way to reuse this method in the two visitors? Create an abstract class of a visitor so that code can be shared (csdl doesnt seem to have the DAX expression)
+            //RRomano: Better way to reuse this method in the two visitors? 
+            // Create an abstract class of a visitor so that code can be shared 
+            // (csdl doesnt seem to have the DAX expression)
 
             var ret = MetaDataVisitorADOMD.VisitMeasures(measures, this._conn);
 

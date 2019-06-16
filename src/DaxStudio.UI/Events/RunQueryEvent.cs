@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using DaxStudio.UI.Interfaces;
 using DaxStudio.UI.Model;
-using DaxStudio.UI.Interfaces;
 
 namespace DaxStudio.UI.Events
 {
@@ -12,14 +8,15 @@ namespace DaxStudio.UI.Events
         public RunQueryEvent(IResultsTarget target)
         {
             ResultsTarget = target;
-            ClearCache = false;
+            RunStyle = new RunStyle("Run", RunStyleIcons.RunOnly, false,false,false, "");
         }
-        public RunQueryEvent(IResultsTarget target, bool clearCache)
+        public RunQueryEvent(IResultsTarget target, RunStyle runStyle)
         {
             ResultsTarget = target;
-            ClearCache = clearCache;
+            RunStyle = runStyle;
         }
         public IResultsTarget ResultsTarget { get; set; }
-        public bool ClearCache { get; set; }
+
+        public RunStyle RunStyle { get; }
     }
 }

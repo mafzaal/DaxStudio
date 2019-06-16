@@ -9,11 +9,11 @@ namespace DaxStudio.Tests
         [TestMethod]
         public void TestSkippingDoubleSlashComments()
         {
-            var qry = @"Evaluate Filter(
-// this is a test )
-table1
-,table1[col1] = 10 )
-";
+            var qry = @"Evaluate Filter(" + Environment.NewLine
+                    + "// this is a test )" + Environment.NewLine
+                    + "table1" + Environment.NewLine
+                    + ",table1[col1] = 10 )" + Environment.NewLine;
+
             var mockDoc = new DocumentMock(qry);
             var srchr = new DAXEditor.BracketRenderer.DaxStudioBracketSearcher();
             var res = srchr.SearchBracket(mockDoc, 17);
@@ -31,31 +31,31 @@ table1
         [TestMethod]
         public void TestSkippingDoubleDashComments()
         {
-            var qry = @"Evaluate Filter(
--- this is a test )
-table1
-,table1[col1] = 10 )
-";
+            var qry = @"Evaluate Filter(" + Environment.NewLine
+                    + "-- this is a test )\"" + Environment.NewLine
+                    + "table1" + Environment.NewLine
+                    + ",table1[col1] = 10 )" + Environment.NewLine;
+
             var mockDoc = new DocumentMock(qry);
             var srchr = new DAXEditor.BracketRenderer.DaxStudioBracketSearcher();
             var res = srchr.SearchBracket(mockDoc, 17);
             Assert.IsNull(res);
             res = srchr.SearchBracket(mockDoc, 16);
             Assert.AreEqual(15, res.OpeningBracketOffset, "Test forward Matching Start Bracket");
-            Assert.AreEqual(66, res.ClosingBracketOffset, "Test forward Matching End Bracket");
+            Assert.AreEqual(67, res.ClosingBracketOffset, "Test forward Matching End Bracket");
             res = srchr.SearchBracket(mockDoc, 37);
             Assert.IsNull(res, "Should not find bracket in comment");
-            res = srchr.SearchBracket(mockDoc, 67);
+            res = srchr.SearchBracket(mockDoc, 68);
             Assert.AreEqual(15, res.OpeningBracketOffset, "Test back Matching Start bracket");
-            Assert.AreEqual(66, res.ClosingBracketOffset, "Test back Matching End bracket");
+            Assert.AreEqual(67, res.ClosingBracketOffset, "Test back Matching End bracket");
         }
 
         [TestMethod]
         public void TestSkippingStrings()
         {
-            var qry = @"Evaluate Filter(
-table1
-,table1[col1] = "":)"" || ')' )";
+            var qry = "Evaluate Filter(" + Environment.NewLine
+                    + "table1" + Environment.NewLine
+                    + ",table1[col1] = \":)\" || ')' )";
             var mockDoc = new DocumentMock(qry);
             var srchr = new DAXEditor.BracketRenderer.DaxStudioBracketSearcher();
             var res = srchr.SearchBracket(mockDoc, 17);
@@ -93,13 +93,13 @@ table1
         [TestMethod]
         public void TestMultiLineQuery()
         {
-            var qry = @"
-EVALUATE
-    CALCULATETABLE(
-    'Product Subcategory',
-    'Product Category'[Product Category Name] = @Category 
-    ))
-";
+            var qry = Environment.NewLine
+                    + "EVALUATE" + Environment.NewLine
+                    + "    CALCULATETABLE(" + Environment.NewLine
+                    + "    'Product Subcategory'," + Environment.NewLine
+                    + "    'Product Category'[Product Category Name] = @Category " + Environment.NewLine
+                    + "    ))" + Environment.NewLine;
+
             var mockDoc = new DocumentMock(qry);
             var srchr = new DAXEditor.BracketRenderer.DaxStudioBracketSearcher();
             var res = srchr.SearchBracket(mockDoc, 1);

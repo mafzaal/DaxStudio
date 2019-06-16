@@ -10,6 +10,7 @@ using DaxStudio.Common;
 using System.Windows.Controls;
 using Caliburn.Micro;
 using DaxStudio.UI.Events;
+using DaxStudio.UI.Extensions;
 
 namespace DaxStudio.Standalone
 {
@@ -54,8 +55,16 @@ namespace DaxStudio.Standalone
                     .ReadFrom.AppSettings()
                     .MinimumLevel.ControlledBy(levelSwitch);
 
-                var logPath = Path.Combine(Environment.ExpandEnvironmentVariables(Constants.LogFolder), 
+                var logPath = Path.Combine(Environment.ExpandEnvironmentVariables(Constants.LogFolder),
                                             Constants.StandaloneLogFileName);
+
+                // if we have a local settings.json file we are running in "portable" mode
+                if (JsonSettingProvider.SettingsFileExists())
+                {
+                    logPath = Path.Combine(JsonSettingProvider.LogPath, Constants.StandaloneLogFileName);
+                }
+
+
                 config.WriteTo.RollingFile(logPath
                         , retainedFileCountLimit: 10);
 
@@ -63,6 +72,21 @@ namespace DaxStudio.Standalone
 
                 // need to create application first
                 var app = new Application();
+                //var app2 = IoC.Get<Application>();
+
+                // add the custom DAX Studio accent color theme
+                app.AddDaxStudioAccentColor();
+
+
+                // load selected theme
+
+
+                // TODO: Theme - read from settings
+
+                var theme = "Light"; // settingProvider.GetValue<string>("Theme", "Light");
+                if (theme == "Dark") app.LoadDarkTheme();
+                else app.LoadLightTheme();
+                
 
                 // add unhandled exception handler
                 app.DispatcherUnhandledException += App_DispatcherUnhandledException;
@@ -79,15 +103,20 @@ namespace DaxStudio.Standalone
                                     || System.Windows.Input.Keyboard.IsKeyDown(Constants.LoggingHotKey2));
 
                 app.Args().LoggingEnabledByHotKey = isLoggingKeyDown;
-                
+
                 var logCmdLineSwitch = app.Args().LoggingEnabled;
-                
 
                 //if (RegistryHelper.IsFileLoggingEnabled() || isLoggingKeyDown || logCmdLineSwitch)
                 if (isLoggingKeyDown || logCmdLineSwitch)
                 {
+#if DEBUG
+                    levelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Verbose;
+                    Log.Debug("Verbose Logging Enabled");
+
+#else
                     levelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
                     Log.Debug("Debug Logging Enabled");
+#endif
                 }
 
                 //RegistryHelper.IsFileLoggingEnabled();
@@ -114,14 +143,24 @@ namespace DaxStudio.Standalone
 
                 app.Run();
             }
+            catch (ArgumentOutOfRangeException argEx)
+            {
+                var st = new System.Diagnostics.StackTrace(argEx);
+                var sf = st.GetFrame(0);
+                if (sf.GetMethod().Name == "GetLineByOffset")
+                {
+                    if (_eventAggregator != null) _eventAggregator.PublishOnUIThread(new OutputMessage(MessageType.Warning, "Editor syntax highlighting attempted to scan byond the end of the current line"));
+                    log.Warning(argEx, "{class} {method} AvalonEdit TextDocument.GetLineByOffset: {message}", "EntryPoint", "Main", "Argument out of range exception");
+                }
+            }
             catch (Exception ex)
             {
                 Log.Fatal(ex, "Class: {0} Method: {1} Error: {2} Stack: {3}", "EntryPoint", "Main", ex.Message, ex.StackTrace);
-#if DEBUG 
+#if DEBUG
                 MessageBox.Show(ex.Message, "DAX Studio Standalone unhandled exception");
 #else
                 // use CrashReporter.Net to send bug to DrDump
-                CrashReporter.ReportCrash(ex,"DAX Studio Standalone Fatal startup crash" );
+                CrashReporter.ReportCrash(ex,"DAX Studio Standalone Fatal crash in Main() method" );
 #endif
 
             }
@@ -134,20 +173,40 @@ namespace DaxStudio.Standalone
 
         private static void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            var comException = e.Exception as System.Runtime.InteropServices.COMException;
 
-            // catch 0x800401D0 (CLIPBRD_E_CANT_OPEN) errors when wpf datagrid can't access clipboard 
-            if (comException != null && comException.ErrorCode == -2147221040)
+
+            if (e.Exception is System.Runtime.InteropServices.COMException comException)
             {
-                e.Handled = true;
-                if (_eventAggregator != null) _eventAggregator.PublishOnUIThread(new OutputMessage(MessageType.Warning, "Unhandled COM Exception - Clipboard operation failed, please try again"));
-                log.Warning(e.Exception, "{class} {method} COM Error while accessing clipboard: {message}", "EntryPoint", "App_DispatcherUnhandledException", "CLIPBRD_E_CANT_OPEN");
+                
+                switch (comException.ErrorCode)
+                {
+                    case -2147221037: // Data on clipboard is invalid (Exception from HRESULT: 0x800401D3 (CLIPBRD_E_BAD_DATA))
+                        e.Handled = true;
+                        if (_eventAggregator != null) _eventAggregator.PublishOnUIThread(new OutputMessage(MessageType.Warning, "CLIPBRD_E_BAD_DATA Error - Clipboard operation failed, please try again"));
+                        log.Warning(e.Exception, "{class} {method} COM Error while accessing clipboard: {message}", "EntryPoint", "App_DispatcherUnhandledException", "CLIPBRD_E_BAD_DATA");
+                        return;
+                    case -2147221040: // catch 0x800401D0 (CLIPBRD_E_CANT_OPEN) errors when wpf datagrid can't access clipboard 
+                        e.Handled = true;
+                        if (_eventAggregator != null) _eventAggregator.PublishOnUIThread(new OutputMessage(MessageType.Warning, "CLIPBRD_E_CANT_OPEN Error - Clipboard operation failed, please try again"));
+                        log.Warning(e.Exception, "{class} {method} COM Error while accessing clipboard: {message}", "EntryPoint", "App_DispatcherUnhandledException", "CLIPBRD_E_CANT_OPEN");
+                        return;
+                    case unchecked((int)0x8001010E)://2147549454): // 0x_8001_010E:
+                        e.Handled = true;
+                        if (_eventAggregator != null) _eventAggregator.PublishOnUIThread(new OutputMessage(MessageType.Warning, "RPC_E_WRONG_THREAD Error - Clipboard operation failed, please try again"));
+                        log.Warning(e.Exception, "{class} {method} COM Error while accessing clipboard: {message}", "EntryPoint", "App_DispatcherUnhandledException", "RPC_E_WRONG_THREAD");
+                        return;
+                    default:
+                        Log.Fatal(e.Exception, "{class} {method} Unhandled exception", "EntryPoint", "App_DispatcherUnhandledException");
+                        break;
+                }
+
             }
             else
             {
                 Log.Fatal(e.Exception, "{class} {method} Unhandled exception", "EntryPoint", "App_DispatcherUnhandledException");
+                // use CrashReporter.Net to send bug to DrDump
+                //CrashReporter.ReportCrash(e.Exception, "DAX Studio Standalone DispatcherUnhandledException crash");
             }
-            
         }
 
         private static void ReadCommandLineArgs(this Application app)
@@ -176,5 +235,7 @@ namespace DaxStudio.Standalone
             p.Parse(args);
             
         }
+
+        
     }
 }

@@ -2,215 +2,70 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:DaxStudio.UI.Converters"
-        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:beh="clr-namespace:DaxStudio.UI.Behaviours"
         xmlns:ap="clr-namespace:DaxStudio.UI.AttachedProperties"
         xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
-        xmlns:fluent="urn:fluent-ribbon" x:Class="DaxStudio.UI.Views.ConnectionDialogView"
+        xmlns:fluent="urn:fluent-ribbon" 
+        x:Class="DaxStudio.UI.Views.ConnectionDialogView"
         DataContext="{Binding}" 
         Loaded="UserControl_Loaded" 
         Width="500">
     <UserControl.Resources>
         <ResourceDictionary>
-        <Color x:Key="DaxStudioBlue">#FF0072C6</Color>
-        <SolidColorBrush x:Key="DaxStudioBrush" Color="#FF0072C6" />
-        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <conv:MultiplyConverter x:Key="multiplyConverter" />
-        <conv:WorkbookNameConverter x:Key="WorkbookNameConverter" />
-        <conv:BoolToNotHiddenConverter x:Key="BoolToNotHiddenConverter" />
-            
-        <BitmapImage x:Key="Warning" UriSource="pack://application:,,,/DaxStudio.UI;component/images/warning.triangle.png" />
-        <BitmapImage x:Key="Information" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-info@96ppi.png" />
-        <BitmapImage x:Key="question" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-question@96ppi.png" />
+            <Color x:Key="DaxStudioBlue">#FF0072C6</Color>
+            <SolidColorBrush x:Key="DaxStudioBrush" Color="{StaticResource DaxStudioBlue}" />
 
-        <BitmapImage x:Key="Excel" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-excel@24px.png" />
-        <BitmapImage x:Key="PowerBI" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-powerBI@24px.png" />
-        <BitmapImage x:Key="Database" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-database@24px.png" />
+            <!-- Converters -->
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <conv:WorkbookNameConverter x:Key="WorkbookNameConverter" />
+            <conv:BoolToNotHiddenConverter x:Key="BoolToNotHiddenConverter" />
 
-        <conv:ResourceLookupConverter x:Key="EmbeddedSsasIcons">
-            <ResourceDictionary>
+            <!-- Bitmaps -->
+            <BitmapImage x:Key="Warning" UriSource="pack://application:,,,/DaxStudio.UI;component/images/warning.triangle.png" />
+            <BitmapImage x:Key="Information" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-info@96ppi.png" />
+            <BitmapImage x:Key="question" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-question@96ppi.png" />
+
+            <BitmapImage x:Key="Excel" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-excel@24px.png" />
+            <BitmapImage x:Key="PowerBI" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-powerBI@24px.png" />
+            <BitmapImage x:Key="Database" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-database@24px.png" />
+
+            <conv:ResourceLookupConverter x:Key="EmbeddedSsasIcons">
+                <ResourceDictionary>
                     <BitmapImage x:Key="PowerBI" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-powerBI@24px.png" />
                     <BitmapImage x:Key="PowerBIReportServer" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-PBIReportServer@24px.png" />
                     <BitmapImage x:Key="Devenv" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-devenv@24px.png" />
-            </ResourceDictionary>
-        </conv:ResourceLookupConverter>
-        <ControlTemplate x:Key="AnimatedExpanderButtonTemp" TargetType="{x:Type ToggleButton}">
-            <Border x:Name="ExpanderButtonBorder"
-        		Background="{TemplateBinding Background}"
-        		BorderBrush="{TemplateBinding BorderBrush}"
-        		BorderThickness="{TemplateBinding BorderThickness}"
-        		Padding="{TemplateBinding Padding}"
-                    >
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Rectangle Fill="Transparent"
-        				Grid.ColumnSpan="2"/>
-                    <Ellipse x:Name="Circle"
-        				Grid.Column="0"
-        				Stroke="DarkGray"
-        				Width="20"
-        				Height="20"
-        				HorizontalAlignment="Center"
-        				VerticalAlignment="Center"
-                         />
-                    <Path x:Name="Arrow"
-        				Grid.Column="0"
-        				Data="M 1,1.5 L 4.5,5 8,1.5"
-        				Stroke="#FF666666"
-        				StrokeThickness="2"
-        				HorizontalAlignment="Center"
-        				VerticalAlignment="Center"
-        				RenderTransformOrigin="0.5,0.5"
-                      >
-                        <Path.RenderTransform>
-                            <RotateTransform Angle="0"/>
-                        </Path.RenderTransform>
-                    </Path>
-                    <ContentPresenter x:Name="HeaderContent"
-        				Grid.Column="1"
-        				Margin="4,0,0,0"
-        				ContentSource="Content" 
-                                      />
-                </Grid>
-            </Border>
-        <ControlTemplate.Triggers>
-                <!-- Animate arrow when toggled-->
-                <Trigger Property="IsChecked"
-                         Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetName="Arrow"
-                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
-                                                 To="180"
-                                                 Duration="0:0:0.4"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetName="Arrow"
-                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
-                                                 To="0"
-                                                 Duration="0:0:0.4"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-
-                <!-- MouseOver, Pressed behaviours-->
-                <Trigger Property="IsMouseOver"
-                                 Value="true">
-                    <Setter Property="Stroke"
-                                    Value="#FF3C7FB1"
-                                    TargetName="Circle"/>
-                    <Setter Property="Stroke"
-                                    Value="#222"
-                                    TargetName="Arrow"/>
-                </Trigger>
-                <Trigger Property="IsPressed"
-                                 Value="true">
-                    <Setter Property="Stroke"
-                                    Value="#FF526C7B"
-                                    TargetName="Circle"/>
-                    <Setter Property="StrokeThickness"
-                                    Value="1.5"
-                                    TargetName="Circle"/>
-                    <Setter Property="Stroke"
-                                    Value="#FF003366"
-                                    TargetName="Arrow"/>
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
-
-        <ControlTemplate x:Key="RevealExpanderTemp" TargetType="{x:Type Expander}">
-            <DockPanel>
-                <ToggleButton x:Name="ExpanderButton" 
-        			DockPanel.Dock="Top"
-        			Template="{StaticResource AnimatedExpanderButtonTemp}"
-        			Content="{TemplateBinding Header}"
-        			IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
-        			OverridesDefaultStyle="True"
-        			Padding="1.5,0"/>
-
-                <ScrollViewer x:Name="ExpanderContentScrollView" DockPanel.Dock="Bottom"
-        			HorizontalScrollBarVisibility="Hidden"
-        			VerticalScrollBarVisibility="Hidden"
-        			HorizontalContentAlignment="Stretch"
-        			VerticalContentAlignment="Bottom"
-        			Opacity="0"
-                              >
-                    <ScrollViewer.Tag>
-                        <sys:Double>0.0</sys:Double>
-                    </ScrollViewer.Tag>
-                    <ScrollViewer.Height>
-                        <MultiBinding Converter="{StaticResource multiplyConverter}">
-                            <Binding Path="ActualHeight" ElementName="ExpanderContent"/>
-                            <Binding Path="Tag" RelativeSource="{RelativeSource Self}" />
-                        </MultiBinding>
-                    </ScrollViewer.Height>
-                    <ContentPresenter x:Name="ExpanderContent" ContentSource="Content"/>
-                </ScrollViewer>
-            </DockPanel>
-            <ControlTemplate.Triggers>
-                <Trigger Property="IsExpanded" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetName="ExpanderContentScrollView"
-                                                 Storyboard.TargetProperty="Tag"
-                                                 To="1"
-                                                 Duration="0:0:0.4"/>
-
-                                <DoubleAnimation Storyboard.TargetName="ExpanderContentScrollView"
-												Storyboard.TargetProperty="(UIElement.Opacity)"
-												To="1" Duration="0:0:0.3" />
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard AutoReverse="False">
-                                <DoubleAnimation Storyboard.TargetName="ExpanderContentScrollView"
-                                                 Storyboard.TargetProperty="Tag"
-                                                 To="0"
-                                                 Duration="0:0:0.4"/>
-                                <DoubleAnimation Storyboard.TargetName="ExpanderContentScrollView"
-												Storyboard.TargetProperty="(UIElement.Opacity)"
-												To="0" Duration="0:0:0.3" />
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
+                    <BitmapImage x:Key="Loading" UriSource="pack://application:,,,/DaxStudio.UI;component/images/icon-wait@24px.png" />
+                </ResourceDictionary>
+            </conv:ResourceLookupConverter>
 
             <Style TargetType="{x:Type TextBlock}" x:Key="disabledText" >
-                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />
+                <!--<Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />-->
                 <Style.Triggers>
-                    <!--<Trigger Property="IsEnabled" Value="True">
+                    
+            <!--<Trigger Property="IsEnabled" Value="True">
                         <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextColorKey}}" />
                     </Trigger>-->
+            
                     <Trigger Property="IsEnabled" Value="False">
                         <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
                     </Trigger>
                 </Style.Triggers>
             </Style>
 
+
+
+
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="pack://application:,,,/DaxStudio.UI;Component/Resources/Styles/MetaDataPaneViewStyle.xaml"/>
                 <ResourceDictionary Source="pack://application:,,,/DaxStudio.UI;Component/Resources/Styles/DaxStudio.RadioButton.xaml"/>
-
+                <ResourceDictionary Source="pack://application:,,,/DaxStudio.UI;Component/Resources/ExpanderTemplates.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/DaxStudio.UI;Component/Resources/Styles/DaxStudioDialog.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
     <Border Padding="10,10,10,200" Margin="0,0,0,0"  >
-        <Border Background="White" BorderBrush="{StaticResource DaxStudioBrush}" BorderThickness="1" CornerRadius="0">
+        <Border Style="{StaticResource DaxStudioDialog}" BorderBrush="{StaticResource DaxStudioBrush}" BorderThickness="1" CornerRadius="0" Background="{DynamicResource DialogBackground}">
 
             <Grid  Height="Auto">
                 <Grid.ColumnDefinitions>
@@ -245,8 +100,7 @@
                                 <StackPanel Orientation="Horizontal" Grid.Column="0">
                                     <RadioButton  Height="16" HorizontalAlignment="Left" Margin="5,12,0,0" x:Name="rdoPowerPivot" VerticalAlignment="Top" IsChecked="{Binding PowerPivotModeSelected, Mode=TwoWay}" Grid.Column="0" GroupName="ConnectionType"  IsEnabled="{Binding HasPowerPivotModel}">
                                         <StackPanel Orientation="Horizontal">
-                                            <!--    <Image Source="{StaticResource Excel}" Margin="0,0,5,0" IsEnabled="True"/>-->
-                                            <TextBlock IsEnabled="{Binding PowerBIDesignerDetected}" Text="PowerPivot Model" Style="{StaticResource disabledText}" />
+                                            <TextBlock IsEnabled="{Binding PowerPivotEnabled}" Style="{StaticResource disabledText}" Text="PowerPivot Model" />
                                         </StackPanel>
                                     </RadioButton>
                                     <Image Source="{StaticResource question}" Margin="5,10,0,0" Height="16" Visibility="{Binding HasPowerPivotModel, Converter={StaticResource BoolToNotHiddenConverter}}">
@@ -271,17 +125,23 @@
                                     <RowDefinition/>
                                 </Grid.RowDefinitions>
                                 <StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="0">
-                                <RadioButton Height="16" HorizontalAlignment="Left" Margin="5,10,5,0" x:Name="rdoPowerBI" VerticalAlignment="Top" IsChecked="{Binding PowerBIModeSelected, Mode=TwoWay}" Grid.Column="0" GroupName="ConnectionType" IsEnabled="{Binding PowerBIDesignerDetected}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <!--<Image  Source="{StaticResource PowerBI}" Margin="0,0,5,0"/>-->
-                                            <TextBlock IsEnabled="{Binding PowerBIDesignerDetected}" Style="{StaticResource disabledText}"><Run Text="PBI"/><Run Text=" / SSDT Model"/></TextBlock>
-                                        
-                                    </StackPanel>
-                                </RadioButton>
-                                <Image Source="{StaticResource question}" Margin="5,1,0,0" Height="16" Visibility="{Binding PowerBIDesignerDetected, Converter={StaticResource BoolToNotHiddenConverter}}">
-                                            <Image.ToolTip>
-                                                <TextBlock MaxWidth="200" TextWrapping="Wrap">No running Power BI Desktop or SSDT Integrated Workspaces found.</TextBlock></Image.ToolTip>
-                                        </Image>
+                                    <RadioButton Height="16" HorizontalAlignment="Left" Margin="5,10,5,0" x:Name="rdoPowerBI" 
+                                             VerticalAlignment="Top" 
+                                             IsChecked="{Binding PowerBIModeSelected, Mode=TwoWay}" 
+                                             Grid.Column="0" GroupName="ConnectionType" 
+                                             IsEnabled="{Binding PowerBIInstanceDetected}">
+                                        <StackPanel Orientation="Horizontal">
+
+                                            <TextBlock IsEnabled="{Binding PowerBIDesignerDetected}" Style="{StaticResource disabledText}" ><Run Text="PBI"/><Run Text=" / SSDT Model"/></TextBlock>
+
+                                        </StackPanel>
+                                    </RadioButton>
+                                    <Image Source="{StaticResource question}" Margin="5,1,0,0" Height="16" 
+                                       Visibility="{Binding PowerBIInstanceDetected, Converter={StaticResource BoolToNotHiddenConverter}}">
+                                        <Image.ToolTip>
+                                            <TextBlock MaxWidth="200" TextWrapping="Wrap">No running Power BI Desktop or SSDT Integrated Workspaces found.</TextBlock>
+                                        </Image.ToolTip>
+                                    </Image>
                                 </StackPanel>
                                 <ComboBox Height="23" Margin="0,5,5,5" x:Name="cboPowerBI" 
                                           VerticalAlignment="Top"  IsEditable="False"  Grid.Column="1"
@@ -306,19 +166,20 @@
                         <Grid >
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="145" />
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="254*"/>
+                                <ColumnDefinition Width="47*"/>
                             </Grid.ColumnDefinitions>
                             <RadioButton Height="16" HorizontalAlignment="Left" Margin="5,10,0,0" x:Name="rdoTabularServer" VerticalAlignment="Top" IsChecked="{Binding ServerModeSelected, Mode=TwoWay}" Grid.Column="0" GroupName="ConnectionType">
                                 <StackPanel Orientation="Horizontal">
                                     <!--<Image Source="{StaticResource Database}" Margin="0,0,5,0" />-->
-                                    <TextBlock Text="Tabular Server" />
+                                    <TextBlock Text="Tabular Server" Style="{StaticResource disabledText}" />
                                 </StackPanel>
                             </RadioButton>
                             <ComboBox Height="23" Margin="0,6,5,0" x:Name="cboServers" VerticalAlignment="Top"  IsEditable="True"  
 								ItemsSource="{Binding RecentServers}" 
 								Text="{Binding DataSource}" 
 								IsEnabled="{Binding IsChecked, ElementName=rdoTabularServer}" Grid.Column="1"
-								ap:InitialFocusExtentions.SelectWhenFocused="{Binding SelectedServerSetFocus}" Grid.ColumnSpan="3"
+								ap:InitialFocusExtentions.SelectWhenFocused="{Binding SelectedServerSetFocus}" Grid.ColumnSpan="2"
                                       >
                                 <ComboBox.Resources>
                                     <VisualBrush x:Key="HelpBrush" TileMode="None" Opacity="0.4" Stretch="None" AlignmentX="Left">
@@ -398,9 +259,9 @@
                         </ComboBox>
 
                         <Label Content="Effective User Name: " Height="28" HorizontalAlignment="Left"  x:Name="lblEffectiveUserName" VerticalAlignment="Top" Grid.Column="0" Grid.Row="2" />
-                        <TextBox Height="23"  x:Name="EffectiveUserName" VerticalAlignment="Top" IsEnabled="{Binding IsChecked, ElementName=rdoTabularServer}"  Grid.Column="1" Grid.Row="2" Width="298"/>
+                        <TextBox Height="23"  x:Name="EffectiveUserName" VerticalAlignment="Top" IsEnabled="{Binding IsEffectiveUserNameEnabled}"  Grid.Column="1" Grid.Row="2" Width="298"/>
                         <Label Content="Roles: " Height="28" HorizontalAlignment="Left" x:Name="lblRoles" VerticalAlignment="Top" Grid.Row="3" Grid.Column="0" />
-                        <TextBox Height="23"  x:Name="Roles" VerticalAlignment="Top" IsEnabled="{Binding IsChecked, ElementName=rdoTabularServer}" Grid.Row="3" Grid.Column="1" Width="298" />
+                        <TextBox Height="23"  x:Name="Roles" VerticalAlignment="Top" IsEnabled="{Binding IsRolesEnabled}" Grid.Row="3" Grid.Column="1" Width="298" />
                         <Label Content="Locale: " Height="28" HorizontalAlignment="Left"  x:Name="lblLocale" VerticalAlignment="Top"  Grid.Row="4" Grid.Column="0"/>
                         <ComboBox Height="23" Grid.Column="1" Grid.Row="4" x:Name="cboLocales" 
 							VerticalAlignment="Top" 
@@ -411,7 +272,7 @@
 
                         <Label Content="Additional Options: " Height="28" HorizontalAlignment="Left"  x:Name="lblAdditionalOptions" VerticalAlignment="Top"  Grid.Row="5" Grid.Column="0"/>
                         <ScrollViewer Grid.Row="5" Grid.Column="1" Height="85" Width="298" >
-                        <TextBox x:Name="AdditionalOptions" TextWrapping="Wrap" 
+                            <TextBox x:Name="AdditionalOptions" TextWrapping="Wrap" 
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"/>
                         </ScrollViewer>
                     </Grid>

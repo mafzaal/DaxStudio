@@ -21,7 +21,7 @@ namespace ADOTabular
 
         public string InternalReference { get; private set; }
 
-        public ADOTabularColumnType ColumnType { get; internal set; }
+        public ADOTabularObjectType ObjectType { get; internal set; }
 
         public ADOTabularTable Table { get; private set; }
 
@@ -35,7 +35,7 @@ namespace ADOTabular
             get
             {
                 // for measures we exclude the table name
-                return ColumnType == ADOTabularColumnType.Column  
+                return ObjectType == ADOTabularObjectType.Column  
                     ? string.Format("{0}[{1}]", Table.DaxName, Name)
                     : string.Format("[{0}]",Name);
             }
@@ -58,5 +58,6 @@ namespace ADOTabular
                 return MetadataImages.Measure;
             }
         }
+
     }
 }
